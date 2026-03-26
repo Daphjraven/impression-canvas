@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chem Sandbox with Media and Question Pieces</title>
+  <title>Chem Sandbox with Question Pieces</title>
   <style>
     :root {
       --grid: 64px;
@@ -16,9 +16,17 @@
       --good: #15803d;
       --bad: #b91c1c;
       --shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+      --quiz-bg: #262b31;
+      --quiz-panel: #2d333b;
+      --quiz-line: #3b424c;
+      --quiz-text: #e5e7eb;
+      --quiz-muted: #c7c9cc;
+      --quiz-blue: #2b77bd;
+      --quiz-green: #4a8b4a;
     }
 
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -42,7 +50,11 @@
     }
 
     .panel { padding: 16px; }
-    h1 { margin: 0 0 8px; font-size: 1.3rem; }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.3rem;
+    }
 
     .sub {
       color: var(--muted);
@@ -52,6 +64,7 @@
     }
 
     .section { margin-top: 18px; }
+
     .section h2 {
       margin: 0 0 10px;
       font-size: 0.85rem;
@@ -60,9 +73,16 @@
       color: var(--muted);
     }
 
-    .controls, .bank { display: grid; gap: 10px; }
-    .bank { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    button, input { font: inherit; }
+    .controls, .bank, .media-bank {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bank, .media-bank {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    button, input, textarea, select { font: inherit; }
 
     button {
       border: 1px solid var(--line);
@@ -92,34 +112,25 @@
       border-color: var(--accent-2);
     }
 
-    .row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .file-input { width: 100%; }
+    .wide { grid-column: 1 / -1; }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
+    .stage-wrap {
+      padding: 16px;
+      overflow: auto;
     }
 
-    .stat {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 10px;
-      background: #fbfdff;
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
     }
 
-    .stat .label {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .hint {
       color: var(--muted);
+      font-size: 0.92rem;
     }
-
-    .stat .value { font-size: 1.2rem; font-weight: 700; margin-top: 4px; }
-
-    .stage-wrap { padding: 16px; overflow: auto; }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
-    .hint { color: var(--muted); font-size: 0.92rem; }
 
     .board {
       position: relative;
@@ -145,7 +156,11 @@
       z-index: 1;
     }
 
-    .piece-layer { position: absolute; inset: 0; z-index: 2; }
+    .piece-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
 
     .piece {
       position: absolute;
@@ -161,9 +176,14 @@
     }
 
     .piece:active { cursor: grabbing; }
-    .piece.selected { outline: 2px dashed rgba(37,99,235,0.85); outline-offset: 4px; }
 
-    .piece.molecule img, .piece.media img {
+    .piece.selected {
+      outline: 2px dashed rgba(37,99,235,0.85);
+      outline-offset: 4px;
+    }
+
+    .piece.molecule img,
+    .piece.media img {
       max-width: 86px;
       max-height: 86px;
       object-fit: contain;
@@ -172,78 +192,112 @@
     }
 
     .piece.question .token {
-      width: 82px;
-      height: 82px;
-      border-radius: 22px;
+      width: 92px;
+      min-height: 92px;
+      border-radius: 20px;
       display: grid;
       place-items: center;
-      font-weight: 800;
-      font-size: 0.82rem;
+      font-weight: 700;
+      font-size: 0.78rem;
       line-height: 1.15;
       color: white;
       text-align: center;
-      padding: 10px;
-      background: linear-gradient(145deg, #7c3aed, #2563eb);
-      box-shadow: 0 10px 18px rgba(37,99,235,0.25);
+      padding: 12px 10px 20px;
+      background: linear-gradient(145deg, #4b5563, #1f2937);
+      box-shadow: 0 10px 18px rgba(17,24,39,0.25);
+      overflow: hidden;
       pointer-events: none;
       position: relative;
-      overflow: hidden;
     }
 
-    .piece.question[data-status="solved"] .token { background: linear-gradient(145deg, #16a34a, #15803d); }
-    .piece.question[data-status="missed"] .token { background: linear-gradient(145deg, #ef4444, #b91c1c); }
+    .piece.question[data-status="solved"] .token {
+      background: linear-gradient(145deg, #16a34a, #15803d);
+    }
+
+    .piece.question[data-status="missed"] .token {
+      background: linear-gradient(145deg, #ef4444, #b91c1c);
+    }
 
     .piece.question .token small {
       position: absolute;
       bottom: 7px;
       right: 10px;
       font-size: 0.7rem;
-      opacity: 0.95;
+      opacity: 0.9;
     }
 
     .piece.media .media-card {
-      width: 84px;
-      height: 84px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: #ffffff;
+      width: 88px;
+      height: 88px;
+      border-radius: 16px;
       overflow: hidden;
+      background: white;
+      border: 1px solid var(--line);
       display: grid;
       place-items: center;
-      box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
       position: relative;
+      box-shadow: 0 10px 18px rgba(15,23,42,0.12);
     }
 
-    .piece.media .media-card.pdf,
-    .piece.media .media-card.video,
-    .piece.media .media-card.audio {
+    .piece.media .media-card.file {
       background: linear-gradient(145deg, #eff6ff, #eef2ff);
       color: var(--accent);
       font-weight: 800;
-      font-size: 1.05rem;
+      font-size: 1rem;
     }
 
     .piece.media .media-label {
       position: absolute;
+      left: 4px;
+      right: 4px;
       bottom: 4px;
-      left: 6px;
-      right: 6px;
-      font-size: 0.58rem;
-      line-height: 1.2;
+      background: rgba(255,255,255,0.88);
       color: var(--muted);
-      background: rgba(255,255,255,0.82);
+      font-size: 0.56rem;
       border-radius: 8px;
       padding: 2px 4px;
-      text-align: center;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      background: #fbfdff;
+    }
+
+    .stat .label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .stat .value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-top: 4px;
     }
 
     .modal {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.45);
+      background: rgba(15, 23, 42, 0.55);
       display: none;
       align-items: center;
       justify-content: center;
@@ -252,56 +306,204 @@
     }
 
     .modal.open { display: flex; }
-    .modal-card { width: min(700px, 100%); padding: 18px; }
-    .modal-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
 
-    .pill {
-      display: inline-block;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 0.82rem;
-      color: var(--muted);
-      background: #fbfdff;
+    .modal-card {
+      width: min(900px, 100%);
+      padding: 0;
+      overflow: hidden;
     }
 
-    .prompt { font-size: 1.08rem; line-height: 1.55; margin: 8px 0 14px; }
-    .choices { display: grid; gap: 10px; margin: 12px 0; }
+    .quiz-shell {
+      background: var(--quiz-bg);
+      color: var(--quiz-text);
+      padding: 28px 34px 26px;
+      font-family: "Trebuchet MS", Inter, system-ui, sans-serif;
+    }
+
+    .quiz-topline {
+      font-size: 0.95rem;
+      color: var(--quiz-muted);
+      margin-bottom: 12px;
+    }
+
+    .quiz-card {
+      border: 1px solid var(--quiz-line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.01);
+      padding: 22px 28px 24px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    .quiz-header-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .quiz-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--quiz-muted);
+    }
+
+    .quiz-close {
+      background: transparent;
+      color: var(--quiz-muted);
+      border: 1px solid var(--quiz-line);
+      padding: 8px 12px;
+      border-radius: 10px;
+    }
+
+    .quiz-generate {
+      background: var(--quiz-blue);
+      color: #e5e7eb;
+      border: 0;
+      border-radius: 0;
+      padding: 10px 22px;
+      min-width: 170px;
+      font-weight: 700;
+      box-shadow: none;
+      transform: none !important;
+      margin: 10px 0 4px;
+    }
+
+    .quiz-helper {
+      color: var(--quiz-text);
+      font-size: 0.88rem;
+      margin: 0 0 30px;
+      white-space: pre-line;
+    }
+
+    .quiz-count {
+      font-size: 1rem;
+      font-weight: 800;
+      margin: 4px 0 24px;
+      color: #f3f4f6;
+    }
+
+    .quiz-prompt {
+      font-size: 1rem;
+      font-weight: 800;
+      line-height: 1.55;
+      margin: 0 0 18px;
+      color: #f3f4f6;
+    }
+
+    .choices {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 18px;
+    }
 
     .choice-btn {
       text-align: left;
-      padding: 12px 14px;
-      border-radius: 14px;
+      border: 0;
+      background: transparent;
+      color: var(--quiz-text);
+      border-radius: 0;
+      padding: 4px 0;
+      box-shadow: none;
+      transform: none !important;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
-    .choice-btn.correct { border-color: #15803d; background: #ecfdf5; }
-    .choice-btn.incorrect { border-color: #b91c1c; background: #fef2f2; }
+    .choice-dot {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #bdbfc4;
+      border-radius: 50%;
+      flex: 0 0 20px;
+      background: transparent;
+    }
 
-    .input {
+    .choice-btn.correct .choice-dot {
+      border-color: #86efac;
+      background: #86efac;
+      box-shadow: inset 0 0 0 4px #1f2937;
+    }
+
+    .choice-btn.incorrect .choice-dot {
+      border-color: #fca5a5;
+      background: #fca5a5;
+      box-shadow: inset 0 0 0 4px #1f2937;
+    }
+
+    .choice-text {
+      font-size: 0.98rem;
+    }
+
+    .input, .textarea {
       width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 14px;
+      border: 1px solid var(--quiz-line);
+      border-radius: 10px;
       padding: 12px 14px;
-      background: #fff;
+      background: #20252b;
+      color: var(--quiz-text);
+      margin-bottom: 14px;
     }
 
-    .feedback { min-height: 1.5em; margin-top: 12px; font-weight: 600; }
-    .feedback.good { color: var(--good); }
-    .feedback.bad { color: var(--bad); }
+    .feedback {
+      min-height: 1.5em;
+      margin-top: 8px;
+      font-weight: 700;
+      color: var(--quiz-text);
+    }
+
+    .feedback.good { color: #86efac; }
+    .feedback.bad { color: #fca5a5; }
 
     .explanation {
-      margin-top: 12px;
+      margin-top: 10px;
       padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: #fbfdff;
-      color: var(--text);
+      border-radius: 10px;
+      border: 1px solid var(--quiz-line);
+      background: #20252b;
+      color: var(--quiz-text);
       line-height: 1.5;
     }
+
+    .quiz-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .quiz-submit {
+      background: var(--quiz-green);
+      color: #dbe7d6;
+      border: 0;
+      border-radius: 0;
+      padding: 10px 22px;
+      min-width: 170px;
+      font-weight: 700;
+      box-shadow: none;
+      transform: none !important;
+    }
+
+    .quiz-ghost {
+      background: transparent;
+      color: var(--quiz-muted);
+      border: 1px solid var(--quiz-line);
+      border-radius: 10px;
+      padding: 9px 14px;
+      box-shadow: none;
+      transform: none !important;
+    }
+
+    .muted { color: var(--muted); }
+    .file-input { width: 100%; }
 
     @media (max-width: 1000px) {
       .app { grid-template-columns: 1fr; }
       .board { width: 100%; min-width: 980px; }
+      .quiz-shell { padding: 20px; }
+      .quiz-card { padding: 18px; }
     }
   </style>
 </head>
@@ -310,11 +512,11 @@
     <aside class="panel">
       <h1>Question-Piece Sandbox 🎲🧪</h1>
       <div class="sub">
-        Drag molecules, textbook images, and quiz tokens on top of your locked chemistry board. The original draw.io file stays safely underneath.
+        Molecules drift around the board, imported media can hop in too, and question tokens open a quiz card with your preferred layout. Your original draw.io board stays locked underneath.
       </div>
 
       <div class="section">
-        <h2>Add molecules</h2>
+        <h2>Add pieces</h2>
         <div class="bank" id="bank"></div>
       </div>
 
@@ -332,10 +534,18 @@
         <h2>Import media</h2>
         <div class="controls">
           <input id="mediaFileInput" class="file-input" type="file" accept="image/*,video/*,audio/*,.pdf" multiple />
-          <button id="spawnMediaBtn">Add most recent media piece</button>
+          <div class="media-bank" id="mediaBank"></div>
         </div>
-        <div class="sub" style="margin-top:8px; margin-bottom:0;">
-          PNG textbook images, illustrations, diagrams, PDFs, audio, and video can be imported as draggable pieces. Double-click media pieces to open them.
+      </div>
+
+      <div class="section">
+        <h2>Session files</h2>
+        <div class="controls">
+          <button id="downloadSessionBtn" class="primary">Download session JSON</button>
+          <input id="sessionFileInput" class="file-input" type="file" accept=".json,application/json" />
+          <button id="loadSessionBtn">Load session JSON</button>
+          <button id="saveBtn">Quick save in browser</button>
+          <button id="loadBtn">Load browser save</button>
         </div>
       </div>
 
@@ -346,11 +556,7 @@
             <button id="duplicateBtn">Duplicate selected</button>
             <button id="deleteBtn">Delete selected</button>
           </div>
-          <div class="row">
-            <button id="clearBtn">Clear all pieces</button>
-            <button id="saveBtn" class="primary">Save layout</button>
-          </div>
-          <button id="loadBtn">Load layout</button>
+          <button id="clearBtn">Clear all pieces</button>
         </div>
       </div>
 
@@ -374,19 +580,20 @@
 
       <div class="section">
         <h2>Tips</h2>
-        <div class="sub" style="margin-bottom:0;">
+        <div class="sub">
           Click a bank item to spawn it.<br>
           Double-click a question token to answer it.<br>
-          Double-click imported media to view it.<br>
+          Double-click a media piece to view it.<br>
+          Download a session JSON and later load it back in.<br>
           Arrow keys nudge selected piece.<br>
-          Delete or Backspace removes it.
+          Delete or Backspace removes selected piece.
         </div>
       </div>
     </aside>
 
     <main class="stage-wrap">
       <div class="toolbar">
-        <div class="hint">Locked background from your diagrams.net board + movable molecules + imported media + question tokens showing the first question.</div>
+        <div class="hint">Locked background from your diagrams.net board + movable pieces + importable study media + reloadable JSON sessions.</div>
       </div>
 
       <div class="board" id="board">
@@ -401,31 +608,39 @@
 
   <div class="modal" id="questionModal" aria-hidden="true">
     <div class="modal-card">
-      <div class="modal-head">
-        <div>
-          <div class="pill" id="questionTypePill">Question</div>
-          <div class="prompt" id="questionPrompt"></div>
+      <div class="quiz-shell">
+        <div class="quiz-topline" id="quizTopline">Discussion Questions (Click play button below ▶)</div>
+        <div class="quiz-card">
+          <div class="quiz-header-row">
+            <div class="quiz-title" id="questionTypePill">Tree-Based Learning Quiz</div>
+            <button id="closeModalBtn" class="quiz-close">Close</button>
+          </div>
+
+          <button id="generateBtn" class="quiz-generate">Generate Quiz</button>
+          <div class="quiz-helper">Quiz generated from the current dataset 🌿
+Students can answer, get feedback, and retry as many times as they like.</div>
+
+          <div class="quiz-count" id="questionCountText">Question 1 of 1</div>
+          <div class="quiz-prompt" id="questionPrompt"></div>
+          <div id="questionBody"></div>
+          <div class="feedback" id="feedback"></div>
+          <div class="explanation" id="explanationBox" hidden></div>
+
+          <div class="quiz-actions">
+            <button id="submitBtn" class="quiz-submit">Submit Answer</button>
+            <button id="hintBtn" class="quiz-ghost">Show hint</button>
+            <button id="revealBtn" class="quiz-ghost">Reveal answer</button>
+            <button id="nextBtn" class="quiz-ghost">Next question</button>
+          </div>
         </div>
-        <button id="closeModalBtn">Close</button>
-      </div>
-      <div id="questionBody"></div>
-      <div class="feedback" id="feedback"></div>
-      <div class="explanation" id="explanationBox" hidden></div>
-      <div class="row" style="margin-top: 14px;">
-        <button id="hintBtn">Show hint</button>
-        <button id="revealBtn">Reveal answer</button>
-        <button id="nextBtn" class="primary">Next question</button>
       </div>
     </div>
   </div>
 
   <div class="modal" id="mediaModal" aria-hidden="true">
-    <div class="modal-card">
-      <div class="modal-head">
-        <div>
-          <div class="pill" id="mediaTypePill">Media</div>
-          <div class="prompt" id="mediaTitle"></div>
-        </div>
+    <div class="modal-card" style="padding:18px;">
+      <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <strong id="mediaTitle">Media</strong>
         <button id="closeMediaModalBtn">Close</button>
       </div>
       <div id="mediaBody"></div>
@@ -434,7 +649,7 @@
 
   <script>
     const GRID = 64;
-    const STORAGE_KEY = 'chem-sandbox-question-media-layout-v1';
+    const STORAGE_KEY = 'chem-sandbox-question-layout-v2';
 
     const starterPieces = [
       {
@@ -485,22 +700,34 @@
         prompt: 'What color is oxidized methylene blue?',
         answer: ['blue'],
         hint: 'Its name is not being subtle.',
-        explanation: 'Oxidized methylene blue appears blue.',
+        explanation: 'Oxidized methylene blue appears blue. In reduced forms, its appearance can change.',
         category: 'Indicators'
+      },
+      {
+        id: 4,
+        type: 'multiple-choice',
+        prompt: 'Which of the following is a carbohydrate?',
+        choices: ['Glucose', 'Oxygen', 'NADH', 'ATP synthase'],
+        answer: 'Glucose',
+        hint: 'Sweet little hexose.',
+        explanation: 'Glucose is a simple sugar and a central carbohydrate in metabolism.',
+        category: 'Molecules'
       }
     ];
 
     const board = document.getElementById('board');
     const pieceLayer = document.getElementById('pieceLayer');
     const bank = document.getElementById('bank');
+    const mediaBank = document.getElementById('mediaBank');
     const questionModal = document.getElementById('questionModal');
     const questionTypePill = document.getElementById('questionTypePill');
     const questionPrompt = document.getElementById('questionPrompt');
     const questionBody = document.getElementById('questionBody');
     const feedback = document.getElementById('feedback');
     const explanationBox = document.getElementById('explanationBox');
+    const questionCountText = document.getElementById('questionCountText');
+    const submitBtn = document.getElementById('submitBtn');
     const mediaModal = document.getElementById('mediaModal');
-    const mediaTypePill = document.getElementById('mediaTypePill');
     const mediaTitle = document.getElementById('mediaTitle');
     const mediaBody = document.getElementById('mediaBody');
     const solvedCount = document.getElementById('solvedCount');
@@ -510,9 +737,12 @@
     let selectedPiece = null;
     let pieceId = 0;
     let questionBank = [...sampleQuestionBank];
-    let importedMediaBank = [];
+    let mediaLibrary = [];
     let activeQuestionPiece = null;
     let currentQuestion = null;
+    let currentTextInput = null;
+    let currentChoiceButtons = [];
+    let currentQuestionIndex = 0;
 
     function snap(v) {
       return Math.round(v / GRID) * GRID;
@@ -535,11 +765,11 @@
       return copy;
     }
 
-    function clampToBoard(x, y) {
-      return {
-        x: Math.max(48, Math.min(board.clientWidth - 48, snap(x))),
-        y: Math.max(48, Math.min(board.clientHeight - 48, snap(y)))
-      };
+    function updateStats() {
+      const qPieces = [...document.querySelectorAll('.piece.question')];
+      solvedCount.textContent = qPieces.filter(p => p.dataset.status === 'solved').length;
+      missedCount.textContent = qPieces.filter(p => p.dataset.status === 'missed').length;
+      bankCount.textContent = questionBank.length;
     }
 
     function selectPiece(el) {
@@ -548,11 +778,11 @@
       if (el) el.classList.add('selected');
     }
 
-    function updateStats() {
-      const qPieces = [...document.querySelectorAll('.piece.question')];
-      solvedCount.textContent = qPieces.filter(p => p.dataset.status === 'solved').length;
-      missedCount.textContent = qPieces.filter(p => p.dataset.status === 'missed').length;
-      bankCount.textContent = questionBank.length;
+    function clampToBoard(x, y) {
+      return {
+        x: Math.max(48, Math.min(board.clientWidth - 48, snap(x))),
+        y: Math.max(48, Math.min(board.clientHeight - 48, snap(y)))
+      };
     }
 
     function attachDrag(el) {
@@ -596,17 +826,22 @@
       return text.length > 34 ? text.slice(0, 34).trim() + '…' : text;
     }
 
-    function pickRandomQuestion() {
-      if (!questionBank.length) return null;
-      return questionBank[Math.floor(Math.random() * questionBank.length)];
-    }
-
     function refreshQuestionToken(piece) {
       const q = questionBank.find(item => String(item.id) === String(piece.dataset.questionId)) || questionBank[0] || null;
       const token = piece.querySelector('.token');
       if (!token) return;
       token.innerHTML = '<span>' + getQuestionPreviewText(q) + '</span><small>Q</small>';
       piece.dataset.questionId = q ? q.id : '';
+    }
+
+    function pickRandomQuestion() {
+      if (!questionBank.length) return null;
+      return questionBank[Math.floor(Math.random() * questionBank.length)];
+    }
+
+    function getQuestionIndexById(id) {
+      const idx = questionBank.findIndex(q => String(q.id) === String(id));
+      return idx < 0 ? 0 : idx;
     }
 
     function createMoleculePiece({ name, src, x = 160, y = 160 }) {
@@ -633,10 +868,9 @@
 
     function createQuestionPiece({ x = 180, y = 180, questionId = null, status = 'unanswered' } = {}) {
       const pt = clampToBoard(x, y);
-      const fallbackQuestion = questionBank[0] || null;
       const q = questionId != null
-        ? questionBank.find(item => String(item.id) === String(questionId)) || fallbackQuestion
-        : fallbackQuestion;
+        ? questionBank.find(item => String(item.id) === String(questionId)) || questionBank[0] || pickRandomQuestion()
+        : questionBank[0] || pickRandomQuestion();
 
       const el = document.createElement('div');
       el.className = 'piece question';
@@ -664,28 +898,28 @@
       return el;
     }
 
-    function createMediaPiece({ name, mediaType, dataUrl, x = 220, y = 220 }) {
+    function createMediaPiece({ name, src, mediaType = 'image', x = 180, y = 180 }) {
       const pt = clampToBoard(x, y);
       const el = document.createElement('div');
       el.className = 'piece media';
       el.dataset.id = 'piece-' + (pieceId++);
       el.dataset.type = 'media';
       el.dataset.name = name;
+      el.dataset.src = src;
       el.dataset.mediaType = mediaType;
-      el.dataset.src = dataUrl;
       el.style.left = pt.x + 'px';
       el.style.top = pt.y + 'px';
 
       const card = document.createElement('div');
-      card.className = 'media-card ' + mediaType;
+      card.className = 'media-card' + (mediaType === 'image' ? '' : ' file');
 
       if (mediaType === 'image') {
         const img = document.createElement('img');
-        img.src = dataUrl;
+        img.src = src;
         img.alt = name;
         card.appendChild(img);
       } else {
-        card.textContent = mediaType === 'pdf' ? 'PDF' : mediaType === 'video' ? 'VID' : 'AUD';
+        card.textContent = mediaType.toUpperCase();
       }
 
       const label = document.createElement('div');
@@ -711,9 +945,42 @@
         const btn = document.createElement('button');
         btn.textContent = piece.name;
         btn.addEventListener('click', () => {
-          createMoleculePiece({ ...piece, x: 150 + Math.random() * 240, y: 150 + Math.random() * 240 });
+          createMoleculePiece({
+            name: piece.name,
+            src: piece.src,
+            x: 150 + Math.random() * 240,
+            y: 150 + Math.random() * 240
+          });
         });
         bank.appendChild(btn);
+      });
+    }
+
+    function buildMediaBank() {
+      mediaBank.innerHTML = '';
+      if (!mediaLibrary.length) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'sub wide';
+        placeholder.style.margin = '0';
+        placeholder.textContent = 'Imported files will appear here as spawn buttons.';
+        mediaBank.appendChild(placeholder);
+        return;
+      }
+
+      mediaLibrary.forEach((item, idx) => {
+        const btn = document.createElement('button');
+        btn.textContent = item.name.length > 24 ? item.name.slice(0, 24) + '…' : item.name;
+        btn.title = item.name;
+        btn.addEventListener('click', () => {
+          createMediaPiece({
+            name: item.name,
+            src: item.src,
+            mediaType: item.mediaType,
+            x: 180 + ((idx % 4) * 70),
+            y: 180 + ((idx % 3) * 70)
+          });
+        });
+        mediaBank.appendChild(btn);
       });
     }
 
@@ -739,14 +1006,66 @@
       updateStats();
     }
 
+    function renderQuestionBody() {
+      questionBody.innerHTML = '';
+      currentTextInput = null;
+      currentChoiceButtons = [];
+      setFeedback('');
+      showExplanation('');
+      submitBtn.disabled = false;
+
+      if (!currentQuestion) return;
+
+      if (currentQuestion.type === 'multiple-choice') {
+        const choicesWrap = document.createElement('div');
+        choicesWrap.className = 'choices';
+        currentQuestion.choices.forEach(choice => {
+          const btn = document.createElement('button');
+          btn.className = 'choice-btn';
+          btn.type = 'button';
+          btn.innerHTML = '<span class="choice-dot"></span><span class="choice-text">' + choice + '</span>';
+          btn.dataset.choice = choice;
+          btn.addEventListener('click', () => {
+            currentChoiceButtons.forEach(b => {
+              b.dataset.selected = 'false';
+              b.style.opacity = '0.85';
+            });
+            btn.dataset.selected = 'true';
+            btn.style.opacity = '1';
+          });
+          currentChoiceButtons.push(btn);
+          choicesWrap.appendChild(btn);
+        });
+        questionBody.appendChild(choicesWrap);
+      } else {
+        const input = document.createElement('input');
+        input.className = 'input';
+        input.placeholder = 'Type your answer here...';
+        currentTextInput = input;
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') checkCurrentAnswer();
+        });
+        questionBody.appendChild(input);
+        setTimeout(() => input.focus(), 30);
+      }
+    }
+
+    function updateQuestionHeader() {
+      questionTypePill.textContent = currentQuestion ? (currentQuestion.category || 'Study Quiz') : 'Study Quiz';
+      questionPrompt.textContent = currentQuestion ? currentQuestion.prompt : '';
+      questionCountText.textContent = 'Question ' + (currentQuestionIndex + 1) + ' of ' + Math.max(1, questionBank.length);
+    }
+
     function openQuestionForPiece(piece) {
       activeQuestionPiece = piece;
-      const fallbackQuestion = questionBank[0] || null;
-      currentQuestion = questionBank.find(q => String(q.id) === String(piece.dataset.questionId)) || fallbackQuestion;
+      const found = questionBank.find(q => String(q.id) === String(piece.dataset.questionId));
+      currentQuestion = found || questionBank[0] || pickRandomQuestion();
+      currentQuestionIndex = currentQuestion ? getQuestionIndexById(currentQuestion.id) : 0;
 
       if (!currentQuestion) {
         questionTypePill.textContent = 'No questions loaded';
         questionPrompt.textContent = 'Load a sample bank or import a JSON question bank first.';
+        questionCountText.textContent = 'Question 0 of 0';
         questionBody.innerHTML = '';
         setFeedback('No question bank loaded.', 'bad');
         showExplanation('Use the JSON file input or the sample bank button in the sidebar.');
@@ -756,115 +1075,100 @@
 
       piece.dataset.questionId = currentQuestion.id;
       refreshQuestionToken(piece);
-      questionTypePill.textContent = (currentQuestion.category || 'General') + ' • ' + currentQuestion.type;
-      questionPrompt.textContent = currentQuestion.prompt;
-      questionBody.innerHTML = '';
-      setFeedback('');
-      showExplanation('');
+      updateQuestionHeader();
+      renderQuestionBody();
+      questionModal.classList.add('open');
+    }
+
+    function checkCurrentAnswer() {
+      if (!currentQuestion) return;
 
       if (currentQuestion.type === 'multiple-choice') {
-        const choicesWrap = document.createElement('div');
-        choicesWrap.className = 'choices';
-        currentQuestion.choices.forEach(choice => {
-          const btn = document.createElement('button');
-          btn.className = 'choice-btn';
-          btn.textContent = choice;
-          btn.addEventListener('click', () => {
-            const isCorrect = normalizeText(choice) === normalizeText(currentQuestion.answer);
-            [...choicesWrap.children].forEach(child => child.disabled = true);
-            btn.classList.add(isCorrect ? 'correct' : 'incorrect');
-            [...choicesWrap.children].forEach(child => {
-              if (normalizeText(child.textContent) === normalizeText(currentQuestion.answer)) {
-                child.classList.add('correct');
-              }
-            });
-            if (isCorrect) {
-              setFeedback('Correct ✨', 'good');
-              markQuestionPiece('solved');
-            } else {
-              setFeedback('Not quite. Correct answer: ' + currentQuestion.answer, 'bad');
-              markQuestionPiece('missed');
-            }
-            showExplanation(currentQuestion.explanation || '');
-          });
-          choicesWrap.appendChild(btn);
-        });
-        questionBody.appendChild(choicesWrap);
-      } else {
-        const input = document.createElement('input');
-        input.className = 'input';
-        input.placeholder = 'Type your answer here...';
-
-        const submitBtn = document.createElement('button');
-        submitBtn.className = 'primary';
-        submitBtn.textContent = 'Check answer';
-        submitBtn.style.marginTop = '12px';
-
-        function checkTypedAnswer() {
-          const userAnswer = normalizeText(input.value);
-          const accepted = Array.isArray(currentQuestion.answer) ? currentQuestion.answer : [currentQuestion.answer];
-          const ok = accepted.some(ans => normalizeText(ans) === userAnswer);
-          if (ok) {
-            setFeedback('Correct ✨', 'good');
-            markQuestionPiece('solved');
-          } else {
-            setFeedback('Not quite yet. Try again or use hint/reveal.', 'bad');
-            markQuestionPiece('missed');
-          }
-          showExplanation(currentQuestion.explanation || '');
+        const selected = currentChoiceButtons.find(btn => btn.dataset.selected === 'true');
+        if (!selected) {
+          setFeedback('Pick an answer first.', 'bad');
+          return;
         }
-
-        submitBtn.addEventListener('click', checkTypedAnswer);
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') checkTypedAnswer();
+        const selectedChoice = selected.dataset.choice;
+        const isCorrect = normalizeText(selectedChoice) === normalizeText(currentQuestion.answer);
+        currentChoiceButtons.forEach(btn => {
+          btn.disabled = true;
+          const text = btn.dataset.choice;
+          if (normalizeText(text) === normalizeText(currentQuestion.answer)) btn.classList.add('correct');
+          if (btn === selected && !isCorrect) btn.classList.add('incorrect');
         });
-
-        questionBody.appendChild(input);
-        questionBody.appendChild(submitBtn);
-        setTimeout(() => input.focus(), 30);
+        submitBtn.disabled = true;
+        if (isCorrect) {
+          setFeedback('Correct ✨', 'good');
+          markQuestionPiece('solved');
+        } else {
+          setFeedback('Not quite. Correct answer: ' + currentQuestion.answer, 'bad');
+          markQuestionPiece('missed');
+        }
+        showExplanation(currentQuestion.explanation || '');
+      } else {
+        const userAnswer = normalizeText(currentTextInput ? currentTextInput.value : '');
+        const accepted = Array.isArray(currentQuestion.answer) ? currentQuestion.answer : [currentQuestion.answer];
+        const ok = accepted.some(ans => normalizeText(ans) === userAnswer);
+        if (ok) {
+          setFeedback('Correct ✨', 'good');
+          markQuestionPiece('solved');
+        } else {
+          setFeedback('Not quite yet. Try again or use hint or reveal.', 'bad');
+          markQuestionPiece('missed');
+        }
+        showExplanation(currentQuestion.explanation || '');
       }
-
-      questionModal.classList.add('open');
     }
 
     function closeModal() {
       questionModal.classList.remove('open');
     }
 
-    function openMediaForPiece(piece) {
-      const type = piece.dataset.mediaType;
-      const src = piece.dataset.src;
-      const name = piece.dataset.name || 'Media';
-      mediaTypePill.textContent = String(type).toUpperCase();
-      mediaTitle.textContent = name;
-      mediaBody.innerHTML = '';
+    function nextQuestion() {
+      if (!questionBank.length) return;
+      currentQuestionIndex = (currentQuestionIndex + 1) % questionBank.length;
+      currentQuestion = questionBank[currentQuestionIndex];
+      if (activeQuestionPiece && currentQuestion) {
+        activeQuestionPiece.dataset.questionId = currentQuestion.id;
+        activeQuestionPiece.dataset.status = 'unanswered';
+        refreshQuestionToken(activeQuestionPiece);
+      }
+      updateQuestionHeader();
+      renderQuestionBody();
+      updateStats();
+    }
 
-      if (type === 'image') {
+    function openMediaForPiece(piece) {
+      const mediaType = piece.dataset.mediaType || 'image';
+      mediaTitle.textContent = piece.dataset.name || 'Media';
+      mediaBody.innerHTML = '';
+      const src = piece.dataset.src;
+
+      if (mediaType === 'image') {
         const img = document.createElement('img');
         img.src = src;
-        img.alt = name;
-        img.style.width = '100%';
-        img.style.maxHeight = '70vh';
-        img.style.objectFit = 'contain';
-        img.style.borderRadius = '14px';
+        img.alt = piece.dataset.name || 'Media';
+        img.style.maxWidth = '100%';
+        img.style.maxHeight = '75vh';
+        img.style.display = 'block';
+        img.style.margin = '0 auto';
         mediaBody.appendChild(img);
-      } else if (type === 'pdf') {
+      } else if (mediaType === 'pdf') {
         const iframe = document.createElement('iframe');
         iframe.src = src;
         iframe.style.width = '100%';
-        iframe.style.height = '70vh';
+        iframe.style.height = '75vh';
         iframe.style.border = '1px solid var(--line)';
-        iframe.style.borderRadius = '14px';
         mediaBody.appendChild(iframe);
-      } else if (type === 'video') {
+      } else if (mediaType === 'video') {
         const video = document.createElement('video');
         video.src = src;
         video.controls = true;
         video.style.width = '100%';
-        video.style.maxHeight = '70vh';
-        video.style.borderRadius = '14px';
+        video.style.maxHeight = '75vh';
         mediaBody.appendChild(video);
-      } else if (type === 'audio') {
+      } else if (mediaType === 'audio') {
         const audio = document.createElement('audio');
         audio.src = src;
         audio.controls = true;
@@ -880,23 +1184,103 @@
       mediaBody.innerHTML = '';
     }
 
-    function nextQuestion() {
-      if (!activeQuestionPiece) return;
-      const q = pickRandomQuestion();
-      if (!q) return;
-      activeQuestionPiece.dataset.questionId = q.id;
-      activeQuestionPiece.dataset.status = 'unanswered';
-      refreshQuestionToken(activeQuestionPiece);
-      openQuestionForPiece(activeQuestionPiece);
+    function getSessionData() {
+      const pieces = [...document.querySelectorAll('.piece')].map(el => ({
+        type: el.dataset.type,
+        name: el.dataset.name || '',
+        src: el.dataset.src || '',
+        mediaType: el.dataset.mediaType || '',
+        x: parseFloat(el.style.left),
+        y: parseFloat(el.style.top),
+        questionId: el.dataset.questionId || '',
+        status: el.dataset.status || ''
+      }));
+
+      return {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        questionBank: questionBank,
+        mediaLibrary: mediaLibrary,
+        pieces: pieces
+      };
+    }
+
+    function serializeLayout() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSessionData()));
+    }
+
+    function applySessionData(data) {
+      questionBank = Array.isArray(data.questionBank) ? data.questionBank : [];
+      mediaLibrary = Array.isArray(data.mediaLibrary) ? data.mediaLibrary : [];
+      pieceLayer.innerHTML = '';
+      selectedPiece = null;
+      (data.pieces || []).forEach(p => {
+        if (p.type === 'molecule') createMoleculePiece(p);
+        else if (p.type === 'question') createQuestionPiece(p);
+        else if (p.type === 'media') createMediaPiece(p);
+      });
+      document.querySelectorAll('.piece.question').forEach(refreshQuestionToken);
+      buildMediaBank();
       updateStats();
     }
 
-    function detectMediaType(file) {
-      if (file.type.startsWith('image/')) return 'image';
-      if (file.type.startsWith('video/')) return 'video';
-      if (file.type.startsWith('audio/')) return 'audio';
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) return 'pdf';
-      return null;
+    function loadLayout() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      applySessionData(JSON.parse(raw));
+    }
+
+    function downloadSessionJson() {
+      const data = JSON.stringify(getSessionData(), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'chem-game-session-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function loadSessionFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          applySessionData(parsed);
+        } catch (err) {
+          alert('Could not load the session JSON file.');
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function duplicateSelected() {
+      if (!selectedPiece) return;
+      const x = parseFloat(selectedPiece.style.left) + GRID;
+      const y = parseFloat(selectedPiece.style.top) + GRID;
+      if (selectedPiece.dataset.type === 'molecule') {
+        createMoleculePiece({ name: selectedPiece.dataset.name, src: selectedPiece.dataset.src, x: x, y: y });
+      } else if (selectedPiece.dataset.type === 'question') {
+        createQuestionPiece({ x: x, y: y, questionId: selectedPiece.dataset.questionId, status: selectedPiece.dataset.status || 'unanswered' });
+      } else if (selectedPiece.dataset.type === 'media') {
+        createMediaPiece({ name: selectedPiece.dataset.name, src: selectedPiece.dataset.src, mediaType: selectedPiece.dataset.mediaType, x: x, y: y });
+      }
+    }
+
+    function deleteSelected() {
+      if (!selectedPiece) return;
+      selectedPiece.remove();
+      selectedPiece = null;
+      updateStats();
+    }
+
+    function clearPieces() {
+      pieceLayer.innerHTML = '';
+      selectedPiece = null;
+      updateStats();
     }
 
     function loadQuestionBankFromFile(file) {
@@ -917,92 +1301,28 @@
       reader.readAsText(file);
     }
 
+    function detectMediaType(file) {
+      if (file.type.startsWith('image/')) return 'image';
+      if (file.type.startsWith('video/')) return 'video';
+      if (file.type.startsWith('audio/')) return 'audio';
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) return 'pdf';
+      return 'image';
+    }
+
     function loadMediaFiles(files) {
-      [...files].forEach(file => {
+      Array.from(files).forEach(file => {
         const mediaType = detectMediaType(file);
-        if (!mediaType) return;
         const reader = new FileReader();
         reader.onload = () => {
-          importedMediaBank.push({
+          mediaLibrary.push({
             name: file.name,
-            mediaType,
-            dataUrl: reader.result
+            src: reader.result,
+            mediaType: mediaType
           });
+          buildMediaBank();
         };
         reader.readAsDataURL(file);
       });
-    }
-
-    function spawnImportedMediaPiece() {
-      if (!importedMediaBank.length) {
-        alert('Import media first.');
-        return;
-      }
-      const item = importedMediaBank[importedMediaBank.length - 1];
-      createMediaPiece({
-        name: item.name,
-        mediaType: item.mediaType,
-        dataUrl: item.dataUrl,
-        x: 220 + Math.random() * 220,
-        y: 220 + Math.random() * 220
-      });
-    }
-
-    function serializeLayout() {
-      const pieces = [...document.querySelectorAll('.piece')].map(el => ({
-        type: el.dataset.type,
-        name: el.dataset.name || '',
-        src: el.dataset.src || '',
-        mediaType: el.dataset.mediaType || '',
-        x: parseFloat(el.style.left),
-        y: parseFloat(el.style.top),
-        questionId: el.dataset.questionId || '',
-        status: el.dataset.status || ''
-      }));
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ questionBank, importedMediaBank, pieces }));
-    }
-
-    function loadLayout() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      questionBank = Array.isArray(data.questionBank) ? data.questionBank : [];
-      importedMediaBank = Array.isArray(data.importedMediaBank) ? data.importedMediaBank : [];
-      pieceLayer.innerHTML = '';
-      selectedPiece = null;
-      (data.pieces || []).forEach(p => {
-        if (p.type === 'molecule') createMoleculePiece(p);
-        else if (p.type === 'question') createQuestionPiece(p);
-        else if (p.type === 'media') createMediaPiece({ name: p.name, mediaType: p.mediaType, dataUrl: p.src, x: p.x, y: p.y });
-      });
-      updateStats();
-    }
-
-    function duplicateSelected() {
-      if (!selectedPiece) return;
-      const x = parseFloat(selectedPiece.style.left) + GRID;
-      const y = parseFloat(selectedPiece.style.top) + GRID;
-      if (selectedPiece.dataset.type === 'molecule') {
-        createMoleculePiece({ name: selectedPiece.dataset.name, src: selectedPiece.dataset.src, x, y });
-      } else if (selectedPiece.dataset.type === 'question') {
-        createQuestionPiece({ x, y, questionId: selectedPiece.dataset.questionId, status: selectedPiece.dataset.status || 'unanswered' });
-      } else if (selectedPiece.dataset.type === 'media') {
-        createMediaPiece({ name: selectedPiece.dataset.name, mediaType: selectedPiece.dataset.mediaType, dataUrl: selectedPiece.dataset.src, x, y });
-      }
-    }
-
-    function deleteSelected() {
-      if (!selectedPiece) return;
-      selectedPiece.remove();
-      selectedPiece = null;
-      updateStats();
-    }
-
-    function clearPieces() {
-      pieceLayer.innerHTML = '';
-      selectedPiece = null;
-      updateStats();
     }
 
     document.getElementById('spawnQuestionBtn').addEventListener('click', () => {
@@ -1031,33 +1351,59 @@
       if (files.length) loadMediaFiles(files);
     });
 
-    document.getElementById('spawnMediaBtn').addEventListener('click', spawnImportedMediaPiece);
-    document.getElementById('saveBtn').addEventListener('click', serializeLayout);
+    document.getElementById('downloadSessionBtn').addEventListener('click', downloadSessionJson);
+    document.getElementById('loadSessionBtn').addEventListener('click', () => {
+      const fileInput = document.getElementById('sessionFileInput');
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        alert('Choose a session JSON file first.');
+        return;
+      }
+      loadSessionFile(file);
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      serializeLayout();
+      updateStats();
+    });
     document.getElementById('loadBtn').addEventListener('click', loadLayout);
     document.getElementById('duplicateBtn').addEventListener('click', duplicateSelected);
     document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
     document.getElementById('clearBtn').addEventListener('click', clearPieces);
     document.getElementById('closeModalBtn').addEventListener('click', closeModal);
     document.getElementById('closeMediaModalBtn').addEventListener('click', closeMediaModal);
-
+    document.getElementById('generateBtn').addEventListener('click', () => {
+      if (!activeQuestionPiece) return;
+      openQuestionForPiece(activeQuestionPiece);
+    });
+    document.getElementById('submitBtn').addEventListener('click', checkCurrentAnswer);
+    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
     document.getElementById('hintBtn').addEventListener('click', () => {
       if (!currentQuestion) return;
       setFeedback('Hint: ' + (currentQuestion.hint || 'No hint for this one.'));
     });
-
     document.getElementById('revealBtn').addEventListener('click', () => {
       if (!currentQuestion) return;
       const answerText = Array.isArray(currentQuestion.answer) ? currentQuestion.answer[0] : currentQuestion.answer;
       setFeedback('Answer: ' + answerText, 'bad');
       showExplanation(currentQuestion.explanation || '');
       markQuestionPiece('missed');
+      submitBtn.disabled = true;
+      if (currentChoiceButtons.length) {
+        currentChoiceButtons.forEach(btn => {
+          btn.disabled = true;
+          if (normalizeText(btn.dataset.choice) === normalizeText(currentQuestion.answer)) btn.classList.add('correct');
+        });
+      }
     });
 
-    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
-
     board.addEventListener('click', () => selectPiece(null));
-    questionModal.addEventListener('click', (e) => { if (e.target === questionModal) closeModal(); });
-    mediaModal.addEventListener('click', (e) => { if (e.target === mediaModal) closeMediaModal(); });
+    questionModal.addEventListener('click', (e) => {
+      if (e.target === questionModal) closeModal();
+    });
+    mediaModal.addEventListener('click', (e) => {
+      if (e.target === mediaModal) closeMediaModal();
+    });
 
     window.addEventListener('keydown', (e) => {
       if (questionModal.classList.contains('open') && e.key === 'Escape') {
@@ -1068,8 +1414,8 @@
         closeMediaModal();
         return;
       }
-      if (!selectedPiece || questionModal.classList.contains('open') || mediaModal.classList.contains('open')) return;
 
+      if (!selectedPiece || questionModal.classList.contains('open') || mediaModal.classList.contains('open')) return;
       let x = parseFloat(selectedPiece.style.left);
       let y = parseFloat(selectedPiece.style.top);
 
@@ -1097,6 +1443,7 @@
     });
 
     buildBank();
+    buildMediaBank();
     updateStats();
   </script>
 </body>
