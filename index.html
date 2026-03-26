@@ -42,15 +42,15 @@ button { margin-top:6px; width:100%; }
 <body>
 
 <div id="sidebar">
-  <h3>Import Game Piece</h3>
+  <h3>Import Game Pieces</h3>
   <input type="file" id="fileInput" multiple accept="image/png,image/jpeg">
 
   <button onclick="addTextbox()">➕ Add Text Box</button>
 
-  <h3>Session</h3>
-  <button onclick="saveSession()">Generate URL</button>
+  <h3>Save Game Session</h3>
+  <button onclick="saveSession()">Generate  JSON URL</button>
   <textarea id="urlBox"></textarea>
-  <button onclick="loadSession()">Load URL</button>
+  <button onclick="loadSession()">Load JSON URL</button>
 </div>
 
 <div id="board"><div id="surface"></div></div>
