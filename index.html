@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Game Board Sandbox</title>
+<title>Anatomy Game Board</title>
 <style>
 :root {
   --grid-size: 24px;
@@ -108,10 +108,31 @@ body {
 
 .textbox {
   background: #ffffff;
-  padding: 8px;
   min-width: 90px;
   min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.textbox-dragbar {
+  background: rgba(47, 85, 255, 0.10);
+  border-bottom: 1px solid rgba(47, 85, 255, 0.20);
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #3552c8;
+  cursor: grab;
+  user-select: none;
+}
+
+.textbox-content {
+  flex: 1;
+  padding: 8px;
+  min-height: 44px;
+  outline: none;
   user-select: text;
+  white-space: pre-wrap;
+  overflow: auto;
 }
 
 .shape.rectangle {
@@ -143,24 +164,24 @@ body {
 </head>
 <body>
 <div id="sidebar">
-  <h2>Import</h2>
+  <h2>Import Game Pieces</h2>
   <input type="file" id="fileInput" multiple accept="image/png,image/jpeg">
-  <button type="button" id="addTextboxBtn">➕ Add Text Box</button>
-  <button type="button" id="addRectangleBtn">⬛ Add Rectangle</button>
-  <button type="button" id="addCircleBtn">⚪ Add Circle</button>
+  <button type="button" id="addTextboxBtn">Add Text Box</button>
+  <button type="button" id="addRectangleBtn">Add Rectangle</button>
+  <button type="button" id="addCircleBtn">Add Circle</button>
 
-  <h3>Selected Object Style</h3>
+  <h3>Game Piece Style</h3>
   <div class="style-row">
     <label for="fillColorInput">Fill Color</label>
     <input type="color" id="fillColorInput" value="#4f46e5">
   </div>
   <div class="style-row">
     <label for="opacityInput">Opacity</label>
-    <input type="range" id="opacityInput" min="0.05" max="1" step="0.05" value="1">
-    <div id="opacityValue">1.00</div>
+    <input type="range" id="opacityInput" min="5" max="100" step="5" value="100">
+    <div id="opacityValue">100</div>
   </div>
 
-  <h3>Session</h3>
+  <h3>Save Session</h3>
   <button type="button" id="generateJsonBtn">Generate JSON Link</button>
   <textarea id="urlBox" placeholder="Your JSON session link will appear here..."></textarea>
   <button type="button" id="copyJsonBtn">Copy JSON Link</button>
@@ -280,19 +301,37 @@ function removePiece(id) {
   render();
 }
 
+function selectPiece(id) {
+  selected = id;
+  document.querySelectorAll('.item.selected').forEach((node) => node.classList.remove('selected'));
+  const node = surface.querySelector(`[data-id="${id}"]`);
+  if (node) node.classList.add('selected');
+  syncStyleControls();
+}
+
+function clearSelection() {
+  selected = null;
+  document.querySelectorAll('.item.selected').forEach((node) => node.classList.remove('selected'));
+  syncStyleControls();
+}
+
 function attachDrag(el, piece, handle) {
-  el.addEventListener('pointerdown', (e) => {
+  const dragTarget = piece.type === 'text'
+    ? el.querySelector('.textbox-dragbar') || el
+    : el;
+
+  dragTarget.addEventListener('pointerdown', (e) => {
     if (e.target === handle) return;
-    if (piece.type === 'text' && e.target === el) {
-      const clickedHandle = e.offsetX > el.clientWidth - 20 && e.offsetY > el.clientHeight - 20;
-      if (!clickedHandle) {
-        selected = piece.id;
-        render();
-        return;
-      }
+    if (e.detail === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      removePiece(piece.id);
+      return;
     }
 
-    selected = piece.id;
+    selectPiece(piece.id);
+    e.preventDefault();
+
     const startX = e.clientX;
     const startY = e.clientY;
     const startLeft = piece.x;
@@ -319,7 +358,7 @@ function attachDrag(el, piece, handle) {
 function attachResize(handle, piece) {
   handle.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    selected = piece.id;
+    selectPiece(piece.id);
     const startX = e.clientX;
     const startY = e.clientY;
     const startW = piece.w;
@@ -363,22 +402,25 @@ function render() {
     } else if (piece.type === 'text') {
       el.classList.add('textbox');
       el.style.background = safeHex(piece.fill || '#ffffff', '#ffffff');
-      el.textContent = piece.text || '';
-      el.contentEditable = 'true';
-      el.spellcheck = false;
-      el.addEventListener('input', () => {
-        piece.text = el.textContent;
+
+      const dragbar = document.createElement('div');
+      dragbar.className = 'textbox-dragbar';
+      dragbar.textContent = 'Drag text box';
+      el.appendChild(dragbar);
+
+      const content = document.createElement('div');
+      content.className = 'textbox-content';
+      content.textContent = piece.text || '';
+      content.contentEditable = 'true';
+      content.spellcheck = false;
+      content.addEventListener('input', () => {
+        piece.text = content.textContent;
       });
-      el.addEventListener('focus', () => {
-        selected = piece.id;
-        syncStyleControls();
-      });
-      el.addEventListener('click', (e) => {
+      content.addEventListener('click', (e) => {
         e.stopPropagation();
-        selected = piece.id;
-        syncStyleControls();
-        render();
+        selectPiece(piece.id);
       });
+      el.appendChild(content);
     } else if (piece.type === 'shape') {
       el.classList.add('shape', piece.shape === 'circle' ? 'circle' : 'rectangle');
       el.style.background = safeHex(piece.fill || '#4f46e5');
@@ -387,16 +429,13 @@ function render() {
     if (piece.type !== 'text') {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        selected = piece.id;
-        syncStyleControls();
-        render();
+        selectPiece(piece.id);
+      });
+      el.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        removePiece(piece.id);
       });
     }
-
-    el.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      removePiece(piece.id);
-    });
 
     const handle = document.createElement('div');
     handle.className = 'resize-handle';
@@ -539,8 +578,7 @@ opacityInput.addEventListener('input', () => {
 });
 
 board.addEventListener('click', () => {
-  selected = null;
-  render();
+  clearSelection();
 });
 
 if (location.hash.startsWith('#json=')) {
