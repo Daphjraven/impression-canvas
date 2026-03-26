@@ -16,16 +16,29 @@ body { margin:0; font-family:sans-serif; display:flex; }
 }
 #surface { width:2200px; height:1400px; position:relative; }
 
-.piece, .textbox {
+.piece, .textbox, .shape {
   position:absolute; cursor:grab; border:2px solid transparent;
 }
-.piece.selected, .textbox.selected { border-color:blue; }
+
+.shape {
+  min-width: 40px;
+  min-height: 40px;
+}
+.piece.selected, .textbox.selected, .shape.selected { border-color:blue; }
 
 .piece img { width:100%; height:100%; object-fit:contain; pointer-events:none; }
 
 .textbox {
   min-width:80px; min-height:40px;
   background:white; padding:6px;
+}
+
+.shape.rectangle {
+  border-radius: 8px;
+}
+
+.shape.circle {
+  border-radius: 999px;
 }
 
 .textbox[contenteditable] { outline:none; }
@@ -46,6 +59,15 @@ button { margin-top:6px; width:100%; }
   <input type="file" id="fileInput" multiple accept="image/png,image/jpeg">
 
   <button onclick="addTextbox()">➕ Add Text Box</button>
+  <button onclick="addShape('rectangle')">⬛ Add Rectangle</button>
+  <button onclick="addShape('circle')">⚪ Add Circle</button>
+
+  <h3>Selected Object Style</h3>
+  <label for="fillColorInput">Fill Color</label>
+  <input type="color" id="fillColorInput" value="#4f46e5">
+  <label for="opacityInput">Opacity</label>
+  <input type="range" id="opacityInput" min="0.05" max="1" step="0.05" value="1">
+  <div id="opacityValue">1.00</div>
 
   <h3>Session</h3>
   <button onclick="generateJsonLink()">Generate JSON Link</button>
@@ -62,6 +84,9 @@ button { margin-top:6px; width:100%; }
 const surface = document.getElementById('surface');
 const fileInput = document.getElementById('fileInput');
 const jsonFileInput = document.getElementById('jsonFileInput');
+const fillColorInput = document.getElementById('fillColorInput');
+const opacityInput = document.getElementById('opacityInput');
+const opacityValue = document.getElementById('opacityValue');
 let pieces = [];
 let selected = null;
 
@@ -81,28 +106,51 @@ function addImage(src){
 }
 
 function addTextbox(){
-  pieces.push({ id:uid(), type:'text', text:'Type here...', x:150, y:150, w:150, h:60 });
+  pieces.push({ id:uid(), type:'text', text:'Type here...', x:150, y:150, w:150, h:60, opacity:1, fill:'#ffffff' });
+  render();
+}
+
+function addShape(shapeType){
+  pieces.push({
+    id: uid(),
+    type: 'shape',
+    shape: shapeType,
+    x: 180,
+    y: 180,
+    w: 120,
+    h: 120,
+    fill: '#4f46e5',
+    opacity: 0.75
+  });
   render();
 }
 
 function render(){
   surface.innerHTML = '';
   pieces.forEach(p => {
+    const className = p.type === 'img' ? 'piece' : p.type === 'text' ? 'textbox' : 'shape ' + (p.shape || 'rectangle');
     const el = document.createElement('div');
-    el.className = (p.type==='img'?'piece':'textbox') + (p.id===selected?' selected':'');
+    el.className = className + (p.id===selected?' selected':'');
     el.style.left = p.x+'px';
     el.style.top = p.y+'px';
     el.style.width = p.w+'px';
     el.style.height = p.h+'px';
 
+    if (typeof p.opacity !== 'number') p.opacity = 1;
+    if (!p.fill) p.fill = p.type === 'text' ? '#ffffff' : '#4f46e5';
+    el.style.opacity = p.opacity;
+
     if(p.type==='img'){
       const img = document.createElement('img');
       img.src = p.src;
       el.appendChild(img);
-    } else {
+    } else if (p.type === 'text') {
       el.contentEditable = true;
       el.innerText = p.text;
+      el.style.background = p.fill || '#ffffff';
       el.oninput = () => p.text = el.innerText;
+    } else if (p.type === 'shape') {
+      el.style.background = p.fill || '#4f46e5';
     }
 
     const handle = document.createElement('div');
@@ -112,6 +160,7 @@ function render(){
     el.onpointerdown = e => {
       if (e.target === handle) return;
       selected = p.id;
+      syncStyleControls();
       let startX=e.clientX, startY=e.clientY;
       let ox=p.x, oy=p.y;
 
@@ -147,6 +196,26 @@ function render(){
 
     surface.appendChild(el);
   });
+}
+
+function getSelectedPiece() {
+  return pieces.find(p => p.id === selected) || null;
+}
+
+function syncStyleControls() {
+  const current = getSelectedPiece();
+  if (!current) return;
+  fillColorInput.value = normalizeColor(current.fill || '#4f46e5');
+  opacityInput.value = String(typeof current.opacity === 'number' ? current.opacity : 1);
+  opacityValue.textContent = Number(opacityInput.value).toFixed(2);
+}
+
+function normalizeColor(color) {
+  if (!color) return '#4f46e5';
+  if (color.startsWith('#') && (color.length === 7 || color.length === 4)) return color.length === 4
+    ? '#' + color[1]+color[1] + color[2]+color[2] + color[3]+color[3]
+    : color;
+  return '#4f46e5';
 }
 
 function encodeSessionData(data) {
@@ -255,6 +324,23 @@ function loadJsonFile(file) {
 jsonFileInput.addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if (file) loadJsonFile(file);
+});
+
+fillColorInput.addEventListener('input', () => {
+  const current = getSelectedPiece();
+  if (!current) return;
+  current.fill = fillColorInput.value;
+  render();
+  syncStyleControls();
+});
+
+opacityInput.addEventListener('input', () => {
+  const current = getSelectedPiece();
+  opacityValue.textContent = Number(opacityInput.value).toFixed(2);
+  if (!current) return;
+  current.opacity = Number(opacityInput.value);
+  render();
+  syncStyleControls();
 });
 
 if(location.hash){ loadJsonLink(); }
