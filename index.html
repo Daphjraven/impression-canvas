@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Anatomy Game Board</title>
+<title>Game Board Sandbox</title>
 <style>
 :root { --grid-size: 24px; }
 body { margin:0; font-family:sans-serif; display:flex; }
@@ -42,15 +42,18 @@ button { margin-top:6px; width:100%; }
 <body>
 
 <div id="sidebar">
-  <h3>Import Game Pieces</h3>
+  <h3>Import</h3>
   <input type="file" id="fileInput" multiple accept="image/png,image/jpeg">
 
   <button onclick="addTextbox()">➕ Add Text Box</button>
 
-  <h3>Save Game Session</h3>
-  <button onclick="saveSession()">Generate  JSON URL</button>
-  <textarea id="urlBox"></textarea>
-  <button onclick="loadSession()">Load JSON URL</button>
+  <h3>Session</h3>
+  <button onclick="generateJsonLink()">Generate JSON Link</button>
+  <textarea id="urlBox" placeholder="Your JSON session link will appear here..."></textarea>
+  <button onclick="copyJsonLink()">Copy JSON Link</button>
+  <button onclick="loadJsonLink()">Load JSON Link</button>
+  <button onclick="downloadJsonFile()">Download JSON File</button>
+  <input type="file" id="jsonFileInput" accept="application/json,.json">
 </div>
 
 <div id="board"><div id="surface"></div></div>
@@ -58,6 +61,7 @@ button { margin-top:6px; width:100%; }
 <script>
 const surface = document.getElementById('surface');
 const fileInput = document.getElementById('fileInput');
+const jsonFileInput = document.getElementById('jsonFileInput');
 let pieces = [];
 let selected = null;
 
@@ -145,22 +149,115 @@ function render(){
   });
 }
 
-function saveSession(){
-  const data = btoa(JSON.stringify(pieces));
-  const url = location.origin + location.pathname + '#'+data;
+function encodeSessionData(data) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+}
+
+function decodeSessionData(raw) {
+  return JSON.parse(decodeURIComponent(escape(atob(raw))));
+}
+
+function generateJsonLink(){
+  const encoded = encodeSessionData(pieces);
+  const url = location.origin + location.pathname + '#json=' + encoded;
   document.getElementById('urlBox').value = url;
-  location.hash = data;
+  location.hash = 'json=' + encoded;
 }
 
-function loadSession(){
+async function copyJsonLink(){
+  const box = document.getElementById('urlBox');
+  if (!box.value.trim()) generateJsonLink();
+  try {
+    await navigator.clipboard.writeText(box.value.trim());
+  } catch (e) {
+    box.focus();
+    box.select();
+    document.execCommand('copy');
+  }
+}
+
+function loadJsonLink(){
   try{
-    const raw = document.getElementById('urlBox').value || location.hash.slice(1);
-    pieces = JSON.parse(atob(raw.replace('#','')));
+    const rawInput = document.getElementById('urlBox').value.trim() || location.href;
+    let hash = '';
+
+    if (rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
+      const parsed = new URL(rawInput);
+      hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash;
+    } else {
+      hash = rawInput.startsWith('#') ? rawInput.slice(1) : rawInput;
+    }
+
+    if (!hash.startsWith('json=')) {
+      throw new Error('Missing json payload');
+    }
+
+    const encoded = hash.slice(5);
+    pieces = decodeSessionData(encoded);
     render();
-  }catch(e){ alert('Invalid URL'); }
+  }catch(e){ alert('Invalid JSON link'); }
 }
 
-if(location.hash){ loadSession(); }
+function downloadJsonFile() {
+  try {
+    const payload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      pieces
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'game-board-session.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Could not download JSON file');
+  }
+}
+
+function loadJsonFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (Array.isArray(data)) {
+        pieces = data;
+      } else if (data && Array.isArray(data.pieces)) {
+        pieces = data.pieces;
+      } else {
+        throw new Error('Invalid JSON structure');
+      }
+      render();
+    } catch (e) {
+      alert('Invalid JSON file');
+    }
+  };
+  reader.readAsText(file);
+} else {
+      hash = rawInput.startsWith('#') ? rawInput.slice(1) : rawInput;
+    }
+
+    if (!hash.startsWith('json=')) {
+      throw new Error('Missing json payload');
+    }
+
+    const encoded = hash.slice(5);
+    pieces = decodeSessionData(encoded);
+    render();
+  }catch(e){ alert('Invalid JSON link'); }
+}catch(e){ alert('Invalid URL'); }
+}
+
+jsonFileInput.addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) loadJsonFile(file);
+});
+
+if(location.hash){ loadJsonLink(); }
 render();
 </script>
 
