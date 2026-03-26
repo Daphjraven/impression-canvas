@@ -1,608 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anatomy Game Board</title>
-  <style>
-    :root {
-      --panel-bg: rgba(255,255,255,0.9);
-      --border: #cfd8e3;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --shadow: 0 10px 30px rgba(0,0,0,0.12);
-      --grid-size: 36px;
-      --grid-light: rgba(70, 90, 120, 0.10);
-      --grid-bold: rgba(70, 90, 120, 0.18);
-      --board-bg: #f8fbff;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anatomy Game Board</title>
+<style>
+:root {
+  --grid-size: 36px;
+}
 
-    * { box-sizing: border-box; }
+body { margin:0; font-family:sans-serif; display:flex; }
 
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(125, 211, 252, 0.18), transparent 30%),
-        radial-gradient(circle at bottom right, rgba(196, 181, 253, 0.15), transparent 30%),
-        #eef4fb;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+#sidebar {
+  width:300px; padding:12px; background:#f3f6fb; overflow:auto;
+}
 
-    .app {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      min-height: 100vh;
-      gap: 16px;
-      padding: 16px;
-    }
+#board {
+  flex:1; position:relative; overflow:auto;
+  background:
+    linear-gradient(#bbb 1px, transparent 1px),
+    linear-gradient(90deg, #bbb 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+}
 
-    .panel {
-      background: var(--panel-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-      padding: 16px;
-      backdrop-filter: blur(10px);
-    }
+#surface {
+  width:2200px; height:1400px; position:relative;
+}
 
-    .sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      overflow: auto;
-    }
+.piece {
+  position:absolute;
+  cursor:grab;
+  border:2px solid transparent;
+}
 
-    h1 {
-      margin: 0 0 8px 0;
-      font-size: 1.35rem;
-    }
+.piece.selected { border-color:blue; }
 
-    h2 {
-      margin: 0 0 10px 0;
-      font-size: 1rem;
-    }
+.piece img {
+  width:100%; height:100%; object-fit:contain; pointer-events:none;
+}
 
-    p, label, small {
-      color: var(--muted);
-      line-height: 1.45;
-    }
+.resize-handle {
+  position:absolute;
+  width:12px; height:12px;
+  right:-6px; bottom:-6px;
+  background:blue; border-radius:3px;
+  cursor:nwse-resize;
+}
 
-    .controls {
-      display: grid;
-      gap: 10px;
-    }
-
-    button,
-    input[type="text"],
-    input[type="number"],
-    textarea,
-    select {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      padding: 10px 12px;
-      font: inherit;
-      background: white;
-      color: var(--text);
-    }
-
-    button {
-      cursor: pointer;
-      font-weight: 600;
-      transition: transform 0.08s ease, box-shadow 0.15s ease;
-    }
-
-    button:hover { transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
-
-    .button-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .board-wrap {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .toolbar .pill {
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: white;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    #board {
-      position: relative;
-      min-height: calc(100vh - 90px);
-      overflow: auto;
-      border-radius: 24px;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      background-color: var(--board-bg);
-      background-image:
-        linear-gradient(var(--grid-bold) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-bold) 1px, transparent 1px),
-        linear-gradient(var(--grid-light) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-light) 1px, transparent 1px);
-      background-size:
-        calc(var(--grid-size) * 5) calc(var(--grid-size) * 5),
-        calc(var(--grid-size) * 5) calc(var(--grid-size) * 5),
-        var(--grid-size) var(--grid-size),
-        var(--grid-size) var(--grid-size);
-      background-position: 0 0, 0 0, 0 0, 0 0;
-    }
-
-    #boardSurface {
-      position: relative;
-      width: 2200px;
-      height: 1400px;
-    }
-
-    .piece {
-      position: absolute;
-      user-select: none;
-      touch-action: none;
-      cursor: grab;
-      border-radius: 12px;
-      box-shadow: 0 10px 22px rgba(0,0,0,0.16);
-      outline: 2px solid transparent;
-      transition: outline-color 0.1s ease, transform 0.05s linear;
-      background: transparent;
-    }
-
-    .piece.selected {
-      outline-color: rgba(37, 99, 235, 0.7);
-    }
-
-    .piece.dragging {
-      cursor: grabbing;
-      z-index: 999;
-    }
-
-    .piece img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      pointer-events: none;
-      border-radius: 12px;
-    }
-
-    .thumbs {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-      gap: 10px;
-    }
-
-    .thumb {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: white;
-      padding: 8px;
-      display: grid;
-      place-items: center;
-      aspect-ratio: 1 / 1;
-      overflow: hidden;
-    }
-
-    .thumb img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
-    .note {
-      font-size: 0.9rem;
-      color: var(--muted);
-      background: rgba(255,255,255,0.7);
-      border: 1px dashed var(--border);
-      border-radius: 14px;
-      padding: 10px 12px;
-    }
-
-    .hidden { display: none; }
-
-    @media (max-width: 980px) {
-      .app {
-        grid-template-columns: 1fr;
-      }
-
-      #board {
-        min-height: 72vh;
-      }
-    }
-  </style>
+textarea { width:100%; height:80px; }
+button { margin-top:6px; width:100%; }
+</style>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <section class="panel">
-        <h1>Anatomy Gameboard ♟️</h1>
-        <p>Import PNG or JPEG images, drop them onto the board, drag them around like pieces, and save the whole scene into a shareable session URL.</p>
-      </section>
 
-      <section class="panel controls">
-        <h2>1. Import Game Pieces</h2>
-        <input id="fileInput" type="file" accept="image/png,image/jpeg" multiple />
-        <button id="clearLibraryBtn" type="button">Clear imported library</button>
-        <div id="library" class="thumbs"></div>
-        <small>Each imported image becomes a draggable board piece automatically.</small>
-      </section>
+<div id="sidebar">
+  <h3>Import</h3>
+  <input type="file" id="fileInput" multiple accept="image/png,image/jpeg">
 
-      <section class="panel controls">
-        <h2>2. Session URL</h2>
-        <button id="saveUrlBtn" type="button">Generate session URL</button>
-        <textarea id="sessionUrl" rows="6" placeholder="Your generated session URL will appear here..."></textarea>
-        <div class="button-row">
-          <button id="copyUrlBtn" type="button">Copy URL</button>
-          <button id="loadUrlBtn" type="button">Load URL</button>
-        </div>
-        <small>Tip: this stores the session directly in the URL hash. Great for lightweight sessions, but very image-heavy boards can make the URL too large for some browsers.</small>
-      </section>
+  <h3>Session</h3>
+  <button onclick="saveSession()">Generate URL</button>
+  <textarea id="urlBox"></textarea>
+  <button onclick="loadSession()">Load URL</button>
+</div>
 
-      <section class="panel controls">
-        <h2>3. Board tools</h2>
-        <div class="button-row">
-          <button id="deleteSelectedBtn" type="button">Delete selected piece</button>
-          <button id="clearBoardBtn" type="button">Clear board</button>
-        </div>
-        <label>
-          Grid size
-          <input id="gridSizeInput" type="number" min="12" max="120" step="2" value="36" />
-        </label>
-        <button id="applyGridBtn" type="button">Apply grid size</button>
-        <div class="note">
-          Drag pieces to move them. Click a piece to select it. Use Delete or Backspace to remove the selected piece.
-        </div>
-      </section>
-    </aside>
+<div id="board"><div id="surface"></div></div>
 
-    <main class="board-wrap">
-      <div class="toolbar panel">
-        <div class="pill">Board surface: 2200 × 1400</div>
-        <div class="pill">Accepted files: PNG, JPEG</div>
-        <div class="pill">Session mode: URL hash</div>
-      </div>
+<script>
+const surface = document.getElementById('surface');
+const fileInput = document.getElementById('fileInput');
+let pieces = [];
+let selected = null;
 
-      <section id="board" class="panel">
-        <div id="boardSurface"></div>
-      </section>
-    </main>
-  </div>
+function uid(){ return Math.random().toString(36).slice(2); }
 
-  <script>
-    const board = document.getElementById('board');
-    const boardSurface = document.getElementById('boardSurface');
-    const fileInput = document.getElementById('fileInput');
-    const library = document.getElementById('library');
-    const sessionUrl = document.getElementById('sessionUrl');
-    const saveUrlBtn = document.getElementById('saveUrlBtn');
-    const copyUrlBtn = document.getElementById('copyUrlBtn');
-    const loadUrlBtn = document.getElementById('loadUrlBtn');
-    const clearBoardBtn = document.getElementById('clearBoardBtn');
-    const clearLibraryBtn = document.getElementById('clearLibraryBtn');
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const gridSizeInput = document.getElementById('gridSizeInput');
-    const applyGridBtn = document.getElementById('applyGridBtn');
+fileInput.onchange = async e => {
+  for (let f of e.target.files) {
+    const r = new FileReader();
+    r.onload = () => addPiece(r.result);
+    r.readAsDataURL(f);
+  }
+};
 
-    let pieces = [];
-    let selectedPieceId = null;
-    let zCounter = 1;
+function addPiece(src){
+  pieces.push({ id:uid(), src, x:100, y:100, w:120, h:120 });
+  render();
+}
 
-    function uid() {
-      return Math.random().toString(36).slice(2, 10);
-    }
+function render(){
+  surface.innerHTML = '';
+  pieces.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'piece' + (p.id===selected?' selected':'');
+    el.style.left = p.x+'px';
+    el.style.top = p.y+'px';
+    el.style.width = p.w+'px';
+    el.style.height = p.h+'px';
 
-    function clamp(value, min, max) {
-      return Math.min(max, Math.max(min, value));
-    }
+    const img = document.createElement('img');
+    img.src = p.src;
+    el.appendChild(img);
 
-    function readFileAsDataURL(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    el.appendChild(handle);
 
-    function addPiece({ src, name = 'piece', x = 80, y = 80, width = 120, height = 120, z = null, id = uid() }) {
-      const piece = { id, src, name, x, y, width, height, z: z ?? ++zCounter };
-      pieces.push(piece);
-      renderPieces();
-      return piece;
-    }
+    // drag
+    el.onpointerdown = e => {
+      if (e.target === handle) return;
+      selected = p.id;
+      let startX=e.clientX, startY=e.clientY;
+      let ox=p.x, oy=p.y;
 
-    function removePiece(id) {
-      pieces = pieces.filter(p => p.id !== id);
-      if (selectedPieceId === id) selectedPieceId = null;
-      renderPieces();
-    }
-
-    function clearBoard() {
-      pieces = [];
-      selectedPieceId = null;
-      renderPieces();
-    }
-
-    function clearLibrary() {
-      library.innerHTML = '';
-      fileInput.value = '';
-    }
-
-    function setSelectedPiece(id) {
-      selectedPieceId = id;
-      renderPieces();
-    }
-
-    function bringToFront(piece) {
-      piece.z = ++zCounter;
-    }
-
-    function renderLibraryThumb(src, name) {
-      const thumb = document.createElement('div');
-      thumb.className = 'thumb';
-      thumb.title = name;
-      const img = document.createElement('img');
-      img.src = src;
-      img.alt = name;
-      thumb.appendChild(img);
-      library.appendChild(thumb);
-    }
-
-    function renderPieces() {
-      boardSurface.innerHTML = '';
-
-      pieces
-        .slice()
-        .sort((a, b) => a.z - b.z)
-        .forEach(piece => {
-          const el = document.createElement('div');
-          el.className = 'piece' + (piece.id === selectedPieceId ? ' selected' : '');
-          el.style.left = piece.x + 'px';
-          el.style.top = piece.y + 'px';
-          el.style.width = piece.width + 'px';
-          el.style.height = piece.height + 'px';
-          el.style.zIndex = piece.z;
-          el.dataset.id = piece.id;
-
-          const img = document.createElement('img');
-          img.src = piece.src;
-          img.alt = piece.name;
-          el.appendChild(img);
-
-          el.addEventListener('pointerdown', startDrag);
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            setSelectedPiece(piece.id);
-          });
-          el.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            removePiece(piece.id);
-          });
-
-          boardSurface.appendChild(el);
-        });
-    }
-
-    function startDrag(e) {
-      const el = e.currentTarget;
-      const id = el.dataset.id;
-      const piece = pieces.find(p => p.id === id);
-      if (!piece) return;
-
-      setSelectedPiece(id);
-      bringToFront(piece);
-      renderPieces();
-
-      const target = boardSurface.querySelector(`[data-id="${id}"]`);
-      if (!target) return;
-      target.classList.add('dragging');
-
-      const boardRect = boardSurface.getBoundingClientRect();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const originX = piece.x;
-      const originY = piece.y;
-
-      target.setPointerCapture(e.pointerId);
-
-      function onMove(ev) {
-        const dx = ev.clientX - startX;
-        const dy = ev.clientY - startY;
-        piece.x = clamp(originX + dx, 0, boardSurface.clientWidth - piece.width);
-        piece.y = clamp(originY + dy, 0, boardSurface.clientHeight - piece.height);
-        target.style.left = piece.x + 'px';
-        target.style.top = piece.y + 'px';
+      function move(ev){
+        p.x = ox + (ev.clientX-startX);
+        p.y = oy + (ev.clientY-startY);
+        render();
       }
+      function up(){ window.removeEventListener('pointermove',move); }
+      window.addEventListener('pointermove',move);
+      window.addEventListener('pointerup',up,{once:true});
+    };
 
-      function onUp(ev) {
-        target.classList.remove('dragging');
-        target.releasePointerCapture(ev.pointerId);
-        target.removeEventListener('pointermove', onMove);
-        target.removeEventListener('pointerup', onUp);
-        target.removeEventListener('pointercancel', onUp);
+    // resize
+    handle.onpointerdown = e => {
+      e.stopPropagation();
+      let startX=e.clientX, startY=e.clientY;
+      let ow=p.w, oh=p.h;
+
+      function move(ev){
+        p.w = Math.max(30, ow + (ev.clientX-startX));
+        p.h = Math.max(30, oh + (ev.clientY-startY));
+        render();
       }
+      function up(){ window.removeEventListener('pointermove',move); }
+      window.addEventListener('pointermove',move);
+      window.addEventListener('pointerup',up,{once:true});
+    };
 
-      target.addEventListener('pointermove', onMove);
-      target.addEventListener('pointerup', onUp);
-      target.addEventListener('pointercancel', onUp);
-    }
+    el.ondblclick = ()=>{
+      pieces = pieces.filter(x=>x.id!==p.id);
+      render();
+    };
 
-    async function handleFiles(fileList) {
-      const files = Array.from(fileList).filter(file => /image\/(png|jpeg)/.test(file.type));
-      for (let index = 0; index < files.length; index++) {
-        const file = files[index];
-        const src = await readFileAsDataURL(file);
-        renderLibraryThumb(src, file.name);
-        addPiece({
-          src,
-          name: file.name,
-          x: 60 + index * 30,
-          y: 60 + index * 30,
-          width: 120,
-          height: 120
-        });
-      }
-    }
+    surface.appendChild(el);
+  });
+}
 
-    function serializeState() {
-      return {
-        version: 1,
-        board: {
-          width: boardSurface.clientWidth,
-          height: boardSurface.clientHeight,
-          gridSize: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 36
-        },
-        pieces
-      };
-    }
+function saveSession(){
+  const data = btoa(JSON.stringify(pieces));
+  const url = location.origin + location.pathname + '#'+data;
+  document.getElementById('urlBox').value = url;
+  location.hash = data;
+}
 
-    function encodeStateToHash(state) {
-      const json = JSON.stringify(state);
-      return '#session=' + btoa(unescape(encodeURIComponent(json)));
-    }
+function loadSession(){
+  try{
+    const raw = document.getElementById('urlBox').value || location.hash.slice(1);
+    pieces = JSON.parse(atob(raw.replace('#','')));
+    render();
+  }catch(e){ alert('Invalid URL'); }
+}
 
-    function decodeStateFromHash(hash) {
-      const clean = hash.startsWith('#') ? hash.slice(1) : hash;
-      const params = new URLSearchParams(clean);
-      const encoded = params.get('session');
-      if (!encoded) throw new Error('No session found in URL.');
-      const json = decodeURIComponent(escape(atob(encoded)));
-      return JSON.parse(json);
-    }
+if(location.hash){ loadSession(); }
+</script>
 
-    function loadState(state) {
-      if (!state || !Array.isArray(state.pieces)) {
-        throw new Error('Invalid session data.');
-      }
-
-      pieces = state.pieces.map(piece => ({ ...piece }));
-      selectedPieceId = null;
-      zCounter = pieces.reduce((max, p) => Math.max(max, p.z || 1), 1);
-      library.innerHTML = '';
-      pieces.forEach(piece => renderLibraryThumb(piece.src, piece.name || 'piece'));
-
-      if (state.board?.gridSize) {
-        document.documentElement.style.setProperty('--grid-size', state.board.gridSize + 'px');
-        gridSizeInput.value = state.board.gridSize;
-      }
-
-      renderPieces();
-    }
-
-    function loadFromInputUrl() {
-      const raw = sessionUrl.value.trim();
-      if (!raw) {
-        alert('Paste a session URL or hash first.');
-        return;
-      }
-
-      try {
-        const url = raw.includes('://') ? new URL(raw) : null;
-        const hash = url ? url.hash : raw;
-        const state = decodeStateFromHash(hash);
-        loadState(state);
-        history.replaceState(null, '', window.location.pathname + encodeStateToHash(state));
-      } catch (err) {
-        console.error(err);
-        alert('Could not load that session URL.');
-      }
-    }
-
-    fileInput.addEventListener('change', async (e) => {
-      await handleFiles(e.target.files);
-    });
-
-    boardSurface.addEventListener('click', () => {
-      selectedPieceId = null;
-      renderPieces();
-    });
-
-    saveUrlBtn.addEventListener('click', () => {
-      try {
-        const state = serializeState();
-        const hash = encodeStateToHash(state);
-        const fullUrl = window.location.origin + window.location.pathname + hash;
-        history.replaceState(null, '', hash);
-        sessionUrl.value = fullUrl;
-      } catch (err) {
-        console.error(err);
-        alert('Could not generate session URL.');
-      }
-    });
-
-    copyUrlBtn.addEventListener('click', async () => {
-      if (!sessionUrl.value.trim()) {
-        alert('Generate a session URL first.');
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(sessionUrl.value.trim());
-      } catch {
-        sessionUrl.select();
-        document.execCommand('copy');
-      }
-    });
-
-    loadUrlBtn.addEventListener('click', loadFromInputUrl);
-
-    clearBoardBtn.addEventListener('click', () => {
-      clearBoard();
-    });
-
-    clearLibraryBtn.addEventListener('click', () => {
-      clearLibrary();
-    });
-
-    deleteSelectedBtn.addEventListener('click', () => {
-      if (selectedPieceId) removePiece(selectedPieceId);
-    });
-
-    applyGridBtn.addEventListener('click', () => {
-      const value = parseInt(gridSizeInput.value, 10);
-      if (!Number.isFinite(value)) return;
-      document.documentElement.style.setProperty('--grid-size', clamp(value, 12, 120) + 'px');
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPieceId) {
-        const activeTag = document.activeElement?.tagName?.toLowerCase();
-        if (activeTag === 'input' || activeTag === 'textarea') return;
-        removePiece(selectedPieceId);
-      }
-    });
-
-    function tryLoadFromCurrentHash() {
-      if (!window.location.hash.includes('session=')) return;
-      try {
-        const state = decodeStateFromHash(window.location.hash);
-        loadState(state);
-        sessionUrl.value = window.location.href;
-      } catch (err) {
-        console.warn('Could not restore session from URL hash.', err);
-      }
-    }
-
-    renderPieces();
-    tryLoadFromCurrentHash();
-  </script>
 </body>
 </html>
