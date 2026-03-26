@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chem Gameboard Sandbox</title>
+  <style>
+    :root {
+      --grid: 64px;
+      --panel: #ffffff;
+      --line: #d7deea;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: #f4f7fb;
+      color: var(--text);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 16px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .panel, .stage-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
+    }
+
+    .sub {
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+
+    .bank {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .bank button, .controls button {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 14px;
+      padding: 10px;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .bank button:hover, .controls button:hover {
+      border-color: #b7c4d6;
+    }
+
+    .controls {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stage-wrap {
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .board {
+      position: relative;
+      width: 1200px;
+      height: 760px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        linear-gradient(to right, rgba(37,99,235,0.10) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(37,99,235,0.10) 1px, transparent 1px);
+      background-size: var(--grid) var(--grid);
+      background-color: white;
+    }
+
+    .bg-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      pointer-events: none; /* locks original board */
+      z-index: 1;
+    }
+
+    .piece-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+
+    .piece {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      transform: translate(-50%, -50%);
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .piece:active {
+      cursor: grabbing;
+    }
+
+    .piece img {
+      max-width: 82px;
+      max-height: 82px;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.18));
+    }
+
+    .piece.selected {
+      outline: 2px dashed rgba(37,99,235,0.8);
+      outline-offset: 4px;
+    }
+
+    @media (max-width: 1000px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <h1>Chem Sandbox 🧪</h1>
+      <div class="sub">
+        Your original diagrams.net board stays untouched underneath. Molecules float above it like little chemistry chess pieces.
+      </div>
+
+      <div class="section">
+        <h2>Add pieces</h2>
+        <div class="bank" id="bank"></div>
+      </div>
+
+      <div class="section">
+        <h2>Board controls</h2>
+        <div class="controls">
+          <button id="duplicateBtn">Duplicate selected</button>
+          <button id="deleteBtn">Delete selected</button>
+          <button id="clearBtn">Clear all pieces</button>
+          <button id="saveBtn">Save layout</button>
+          <button id="loadBtn">Load layout</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Tips</h2>
+        <div class="sub">
+          Click a bank item to spawn it.<br>
+          Drag to move.<br>
+          Arrow keys nudge selected piece.<br>
+          Delete or Backspace removes it.
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage-wrap">
+      <div class="toolbar">
+        <div class="hint">Locked background from your diagrams.net link + draggable overlay layer</div>
+      </div>
+
+      <div class="board" id="board">
+        <iframe
+          class="bg-frame"
+          src="https://viewer.diagrams.net/?border=0&tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=Methylene-Blue%20-%20Chem%20Board.drawio&dark=auto#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1cBvoM1jdJKEfZYZy2sJDUvK-hFW-P-Iz%26export%3Ddownload">
+        </iframe>
+        <div class="piece-layer" id="pieceLayer"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const GRID = 64;
+    const STORAGE_KEY = "chem-sandbox-layout-v1";
+
+    const starterPieces = [
+      {
+        name: "Methylene Blue",
+        src: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Methylene_blue.svg/512px-Methylene_blue.svg.png"
+      },
+      {
+        name: "Oxygen",
+        src: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Oxygen_molecule.svg/512px-Oxygen_molecule.svg.png"
+      },
+      {
+        name: "Glucose",
+        src: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Alpha-D-Glucose.svg/512px-Alpha-D-Glucose.svg.png"
+      },
+      {
+        name: "NADH",
+        src: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Nicotinamide_adenine_dinucleotide_reduced.svg/512px-Nicotinamide_adenine_dinucleotide_reduced.svg.png"
+      }
+    ];
+
+    const board = document.getElementById("board");
+    const pieceLayer = document.getElementById("pieceLayer");
+    const bank = document.getElementById("bank");
+
+    let selectedPiece = null;
+    let pieceId = 0;
+
+    function snap(v) {
+      return Math.round(v / GRID) * GRID;
+    }
+
+    function selectPiece(el) {
+      document.querySelectorAll(".piece.selected").forEach(p => p.classList.remove("selected"));
+      selectedPiece = el;
+      if (el) el.classList.add("selected");
+    }
+
+    function createBank() {
+      starterPieces.forEach(piece => {
+        const btn = document.createElement("button");
+        btn.textContent = piece.name;
+        btn.addEventListener("click", () => {
+          createPiece({
+            ...piece,
+            x: 160 + Math.random() * 220,
+            y: 140 + Math.random() * 220
+          });
+        });
+        bank.appendChild(btn);
+      });
+    }
+
+    function createPiece({ name, src, x = 150, y = 150 }) {
+      const el = document.createElement("div");
+      el.className = "piece";
+      el.dataset.id = "piece-" + (pieceId++);
+      el.dataset.name = name;
+      el.dataset.src = src;
+      el.style.left = snap(x) + "px";
+      el.style.top = snap(y) + "px";
+
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = name;
+      el.appendChild(img);
+
+      el.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        selectPiece(el);
+
+        const rect = board.getBoundingClientRect();
+        const startLeft = parseFloat(el.style.left);
+        const startTop = parseFloat(el.style.top);
+        const offsetX = e.clientX - rect.left - startLeft;
+        const offsetY = e.clientY - rect.top - startTop;
+
+        function move(ev) {
+          const x = ev.clientX - rect.left - offsetX;
+          const y = ev.clientY - rect.top - offsetY;
+          el.style.left = Math.max(45, Math.min(board.clientWidth - 45, snap(x))) + "px";
+          el.style.top = Math.max(45, Math.min(board.clientHeight - 45, snap(y))) + "px";
+        }
+
+        function up() {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+        }
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+      });
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectPiece(el);
+      });
+
+      pieceLayer.appendChild(el);
+      selectPiece(el);
+      return el;
+    }
+
+    function serializeLayout() {
+      const pieces = [...document.querySelectorAll(".piece")].map(el => ({
+        name: el.dataset.name,
+        src: el.dataset.src,
+        x: parseFloat(el.style.left),
+        y: parseFloat(el.style.top)
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pieces));
+    }
+
+    function loadLayout() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      pieceLayer.innerHTML = "";
+      selectedPiece = null;
+      JSON.parse(raw).forEach(p => createPiece(p));
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", serializeLayout);
+    document.getElementById("loadBtn").addEventListener("click", loadLayout);
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      pieceLayer.innerHTML = "";
+      selectedPiece = null;
+    });
+
+    document.getElementById("deleteBtn").addEventListener("click", () => {
+      if (selectedPiece) {
+        selectedPiece.remove();
+        selectedPiece = null;
+      }
+    });
+
+    document.getElementById("duplicateBtn").addEventListener("click", () => {
+      if (!selectedPiece) return;
+      createPiece({
+        name: selectedPiece.dataset.name,
+        src: selectedPiece.dataset.src,
+        x: parseFloat(selectedPiece.style.left) + GRID,
+        y: parseFloat(selectedPiece.style.top) + GRID
+      });
+    });
+
+    board.addEventListener("click", () => selectPiece(null));
+
+    window.addEventListener("keydown", (e) => {
+      if (!selectedPiece) return;
+
+      let x = parseFloat(selectedPiece.style.left);
+      let y = parseFloat(selectedPiece.style.top);
+
+      if (e.key === "ArrowLeft") x -= GRID;
+      else if (e.key === "ArrowRight") x += GRID;
+      else if (e.key === "ArrowUp") y -= GRID;
+      else if (e.key === "ArrowDown") y += GRID;
+      else if (e.key === "Delete" || e.key === "Backspace") {
+        selectedPiece.remove();
+        selectedPiece = null;
+        return;
+      } else {
+        return;
+      }
+
+      selectedPiece.style.left = Math.max(45, Math.min(board.clientWidth - 45, x)) + "px";
+      selectedPiece.style.top = Math.max(45, Math.min(board.clientHeight - 45, y)) + "px";
+      e.preventDefault();
+    });
+
+    createBank();
+  </script>
+</body>
+</html>
