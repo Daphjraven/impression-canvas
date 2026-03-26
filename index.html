@@ -388,6 +388,7 @@ function attachDrag(el, piece, handle) {
 
   dragTarget.addEventListener('pointerdown', (e) => {
     if (e.target === handle) return;
+    if (e.button !== 0) return;
     selectPiece(piece.id);
     e.preventDefault();
 
@@ -395,10 +396,14 @@ function attachDrag(el, piece, handle) {
     const startY = e.clientY;
     const startLeft = piece.x;
     const startTop = piece.y;
+    let moved = false;
 
     const move = (ev) => {
-      piece.x = clamp(startLeft + (ev.clientX - startX), 0, surface.clientWidth - piece.w);
-      piece.y = clamp(startTop + (ev.clientY - startY), 0, surface.clientHeight - piece.h);
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      piece.x = clamp(startLeft + dx, 0, surface.clientWidth - piece.w);
+      piece.y = clamp(startTop + dy, 0, surface.clientHeight - piece.h);
       el.style.left = piece.x + 'px';
       el.style.top = piece.y + 'px';
     };
@@ -406,7 +411,7 @@ function attachDrag(el, piece, handle) {
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      render();
+      if (moved) render();
     };
 
     window.addEventListener('pointermove', move);
@@ -494,9 +499,24 @@ function render() {
     }
 
     el.addEventListener('dblclick', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       removePiece(piece.id);
     });
+
+    if (piece.type === 'text') {
+      const dragbarNode = el.querySelector('.textbox-dragbar');
+      const contentNode = el.querySelector('.textbox-content');
+
+      [dragbarNode, contentNode].forEach((node) => {
+        if (!node) return;
+        node.addEventListener('dblclick', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          removePiece(piece.id);
+        });
+      });
+    }
 
     const handle = document.createElement('div');
     handle.className = 'resize-handle';
