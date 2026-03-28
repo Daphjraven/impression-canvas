@@ -349,11 +349,52 @@ function showMediaContextMenu(x, y, pieceId) {
 }
 function sanitizeSvgForTransparency(svgText) {
   let cleaned = String(svgText || '');
-  cleaned = cleaned.replace(/<rect[^>]*fill=["']?#fff(?:fff)?["']?[^>]*><\/rect>/gi, '');
-  cleaned = cleaned.replace(/<rect[^>]*fill=["']?white["']?[^>]*><\/rect>/gi, '');
-  cleaned = cleaned.replace(/<rect([^>]*?)fill=["']?(#fff(?:fff)?|white)["']?([^>]*)\/?>(?:<\/rect>)?/gi, function(match, before, fill, after) {
-    return '<rect' + before + 'fill="none"' + after + '/>';
-  });
+
+  // remove explicit white rect backgrounds
+  cleaned = cleaned.replace(
+    /<rect\b[^>]*\bfill=(["'])(#fff|#ffffff|white)\1[^>]*>\s*<\/rect>/gi,
+    ''
+  );
+
+  cleaned = cleaned.replace(
+    /<rect\b[^>]*\bfill=(["'])(#fff|#ffffff|white)\1[^>]*\/>/gi,
+    ''
+  );
+
+  // convert any remaining white rect fills to none
+  cleaned = cleaned.replace(
+    /<rect\b([^>]*?)\bfill=(["'])(#fff|#ffffff|white)\2([^>]*)>/gi,
+    '<rect$1fill="none"$4>'
+  );
+
+  // remove white background style if present
+  cleaned = cleaned.replace(
+    /\bstyle=(["'])([^"']*)\bbackground(?:-color)?\s*:\s*(white|#fff|#ffffff)\s*;?([^"']*)\1/gi,
+    function(match, quote, before, bg, after) {
+      const merged = (before + ' ' + after)
+        .replace(/\s*;\s*/g, '; ')
+        .replace(/^\s+|\s+$/g, '')
+        .replace(/^;|;$/g, '');
+      return merged ? 'style=' + quote + merged + quote : '';
+    }
+  );
+
+  // force svg root background transparent
+  cleaned = cleaned.replace(
+    /<svg\b([^>]*)>/i,
+    function(match, attrs) {
+      if (/style\s*=/i.test(attrs)) {
+        return '<svg' + attrs.replace(
+          /style=(["'])(.*?)\1/i,
+          function(m, q, style) {
+            return 'style=' + q + style + ';background:transparent' + q;
+          }
+        ) + '>';
+      }
+      return '<svg' + attrs + ' style="background:transparent">';
+    }
+  );
+
   return cleaned;
 }
 function svgToDataUrl(svgText) {
@@ -855,4 +896,3 @@ window.addEventListener('resize', hideMediaContextMenu);
 
 </body>
 </html>
-
