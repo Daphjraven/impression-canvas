@@ -350,7 +350,7 @@ function showMediaContextMenu(x, y, pieceId) {
 function sanitizeSvgForTransparency(svgText) {
   let cleaned = String(svgText || '');
 
-  // remove explicit white rect backgrounds
+  // remove full white rect blocks
   cleaned = cleaned.replace(
     /<rect\b[^>]*\bfill=(["'])(#fff|#ffffff|white)\1[^>]*>\s*<\/rect>/gi,
     ''
@@ -361,25 +361,35 @@ function sanitizeSvgForTransparency(svgText) {
     ''
   );
 
-  // convert any remaining white rect fills to none
+  // catch white fill written in style=""
+  cleaned = cleaned.replace(
+    /<rect\b([^>]*?)style=(["'])(.*?)\2([^>]*)>/gi,
+    function(match, before, quote, styleText, after) {
+      let style = styleText
+        .replace(/fill\s*:\s*(white|#fff|#ffffff)\s*;?/gi, 'fill:none;')
+        .replace(/background(?:-color)?\s*:\s*(white|#fff|#ffffff)\s*;?/gi, 'background:transparent;');
+      return '<rect' + before + 'style=' + quote + style + quote + after + '>';
+    }
+  );
+
+  // convert remaining white-filled rects to transparent
   cleaned = cleaned.replace(
     /<rect\b([^>]*?)\bfill=(["'])(#fff|#ffffff|white)\2([^>]*)>/gi,
     '<rect$1fill="none"$4>'
   );
 
-  // remove white background style if present
+  // remove white background on svg style if present
   cleaned = cleaned.replace(
-    /\bstyle=(["'])([^"']*)\bbackground(?:-color)?\s*:\s*(white|#fff|#ffffff)\s*;?([^"']*)\1/gi,
-    function(match, quote, before, bg, after) {
-      const merged = (before + ' ' + after)
-        .replace(/\s*;\s*/g, '; ')
-        .replace(/^\s+|\s+$/g, '')
-        .replace(/^;|;$/g, '');
-      return merged ? 'style=' + quote + merged + quote : '';
+    /\bstyle=(["'])([^"']*)\1/gi,
+    function(match, quote, styleText) {
+      let style = styleText
+        .replace(/background(?:-color)?\s*:\s*(white|#fff|#ffffff)\s*;?/gi, 'background:transparent;')
+        .replace(/fill\s*:\s*(white|#fff|#ffffff)\s*;?/gi, 'fill:none;');
+      return 'style=' + quote + style + quote;
     }
   );
 
-  // force svg root background transparent
+  // force root svg to transparent background
   cleaned = cleaned.replace(
     /<svg\b([^>]*)>/i,
     function(match, attrs) {
@@ -387,7 +397,10 @@ function sanitizeSvgForTransparency(svgText) {
         return '<svg' + attrs.replace(
           /style=(["'])(.*?)\1/i,
           function(m, q, style) {
-            return 'style=' + q + style + ';background:transparent' + q;
+            const patched = style
+              .replace(/background(?:-color)?\s*:\s*(white|#fff|#ffffff)\s*;?/gi, '')
+              + ';background:transparent';
+            return 'style=' + q + patched + q;
           }
         ) + '>';
       }
