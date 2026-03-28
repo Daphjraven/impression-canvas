@@ -439,7 +439,7 @@ async function saveSessionToGitHub(){
 }
 
 function populateGitHubBoards(items) {
-  githubBoardsSelect.innerHTML = '<option value="">Choose a saved board...</option>';
+  githubBoardsSelect.innerHTML = '<option value="">Choose a saved canva...</option>';
   items.forEach(item => {
     const option = document.createElement('option');
     option.value = item.url;
@@ -461,7 +461,7 @@ async function refreshGitHubBoards(){
   }
 
   try {
-    setStatus('Loading saved boards from GitHub...');
+    setStatus('Loading saved canva from GitHub...');
     const endpoint = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${folder.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(branch)}`;
     const headers = {
       'Accept': 'application/vnd.github+json',
@@ -481,7 +481,7 @@ async function refreshGitHubBoards(){
       }));
 
     populateGitHubBoards(boards);
-    setStatus(boards.length ? `Loaded ${boards.length} saved board(s) from GitHub.` : 'No saved JSON boards found in that GitHub folder.');
+    setStatus(boards.length ? `Loaded ${boards.length} saved board(s) from GitHub.` : 'No saved JSON canva found in that GitHub folder.');
   } catch (e) {
     alert('Could not load saved boards from GitHub.');
     setStatus('Could not load saved boards from GitHub. ' + e.message);
