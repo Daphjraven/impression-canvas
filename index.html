@@ -34,11 +34,11 @@ body.sidebar-collapsed #sidebar > * {
 }
 #sidebar > * { transition: opacity 0.16s ease; }
 
-#canvas-wrap {
+#board-wrap {
   flex:1; min-width:0; position:relative; display:flex;
 }
 
-#canvas {
+#board {
   flex:1; position:relative; overflow:auto;
   background-color: white;
   background-image:
@@ -176,8 +176,8 @@ label { display:block; margin-top:10px; font-size:14px; }
   <button type="button" onclick="saveSessionToGitHub()">Save Session to GitHub</button>
   <button type="button" onclick="refreshGitHubCanvases()">Refresh GitHub Canvases</button>
 
-  <label for="githubCanvasesSelect">Saved Canvases in GitHub folder</label>
-  <select id="githubCanvasesSelect">
+  <label for="githubBoardsSelect">Saved Canvases in GitHub folder</label>
+  <select id="githubBoardsSelect">
     <option value="">Choose a saved canvas...</option>
   </select>
   <button type="button" onclick="loadSelectedGitHubCanvas()">Load Selected GitHub Canvas</button>
@@ -218,7 +218,7 @@ const githubRepoInput = document.getElementById('githubRepoInput');
 const githubBranchInput = document.getElementById('githubBranchInput');
 const githubFolderInput = document.getElementById('githubFolderInput');
 const githubTokenInput = document.getElementById('githubTokenInput');
-const githubCanvasesSelect = document.getElementById('githubCanvasesSelect');
+const githubBoardsSelect = document.getElementById('githubBoardsSelect');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const toggleChevron = document.getElementById('toggleChevron');
 
@@ -493,12 +493,12 @@ async function saveSessionToGitHub(){
 }
 
 function populateGitHubCanvases(items) {
-  githubCanvasesSelect.innerHTML = '<option value="">Choose a saved canvas...</option>';
+  githubBoardsSelect.innerHTML = '<option value="">Choose a saved canvas...</option>';
   items.forEach(item => {
     const option = document.createElement('option');
     option.value = item.url;
     option.textContent = item.label;
-    githubCanvasesSelect.appendChild(option);
+    githubBoardsSelect.appendChild(option);
   });
 }
 
@@ -543,7 +543,7 @@ async function refreshGitHubCanvases(){
 }
 
 async function loadSelectedGitHubCanvas(){
-  const selectedUrl = githubCanvasesSelect.value;
+  const selectedUrl = githubBoardsSelect.value;
   if (!selectedUrl) {
     setStatus('Choose a saved GitHub canvas first.');
     return;
