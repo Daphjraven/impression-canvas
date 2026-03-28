@@ -132,7 +132,7 @@ label { display:block; margin-top:10px; font-size:14px; }
 
   <h3>GitHub Session Save</h3>
   <label for="sessionNameInput">Session file name</label>
-  <input type="text" id="sessionNameInput" placeholder="respiratory-board-01">
+  <input type="text" id="sessionNameInput" placeholder="demo-board">
 
   <label for="githubOwnerInput">GitHub owner</label>
   <input type="text" id="githubOwnerInput" placeholder="daphjraven">
@@ -144,7 +144,7 @@ label { display:block; margin-top:10px; font-size:14px; }
   <input type="text" id="githubBranchInput" value="main" placeholder="main">
 
   <label for="githubFolderInput">Folder path in repo</label>
-  <input type="text" id="githubFolderInput" value="sessions" placeholder="sessions">
+  <input type="text" id="githubFolderInput" value="sessions" placeholder="data">
 
   <label for="githubTokenInput">GitHub personal access token</label>
   <input type="password" id="githubTokenInput" placeholder="token with repo contents write access">
@@ -160,7 +160,7 @@ label { display:block; margin-top:10px; font-size:14px; }
   <button type="button" onclick="makeEmbedLink()">Make Notion Embed Link</button>
 
   <label for="externalUrlInput">External JSON URL</label>
-  <input type="text" id="externalUrlInput" placeholder="https://raw.githubusercontent.com/.../sessions/respiratory-board-01.json">
+  <input type="text" id="externalUrlInput" placeholder="https://raw.githubusercontent.com/.../data/demo-board.json">
   <button type="button" onclick="loadExternalJson()">Load External JSON</button>
 
   <textarea id="embedBox" placeholder="Smaller Notion embed link appears here..."></textarea>
