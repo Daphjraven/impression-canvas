@@ -558,10 +558,10 @@ function addMolecule(){
     const mol = RDKitModuleRef.get_mol(smiles);
     if (!mol) throw new Error('Could not parse SMILES');
 const rawSvg = mol.get_svg();
+console.log(rawSvg);
 const transparentSvg = sanitizeSvgForTransparency(rawSvg);
 const svgSize = getSvgCanvasSize(transparentSvg);
 const encoded = svgToDataUrl(transparentSvg);
-console.log(rawSvg);
     
 pieces.push({
   id: uid(),
