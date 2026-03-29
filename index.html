@@ -269,9 +269,19 @@ body.sidebar-collapsed #sidebar > * {
   white-space: pre-wrap;
   overflow: auto;
   min-height: 60px;
-}
 
-  
+  .custom-textbox-dragbar {
+  padding: 6px 8px;
+  background: #eef3fb;
+  border-bottom: 1px solid #d9e0ea;
+  cursor: grab;
+  font-size: 12px;
+  color: #566;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none; 
+}
+ 
 #mediaContextMenu {
   position:fixed;
   z-index:1000;
@@ -1191,14 +1201,12 @@ function render() {
   };
   p.styles = styles;
 
-  // ✨ CREATE CONTENT (THIS IS WHAT YOU’RE MISSING)
   const content = document.createElement('div');
   content.className = 'custom-textbox-content';
   content.contentEditable = 'true';
   content.spellcheck = false;
   content.textContent = p.text || '';
 
-  // ✨ APPLY STYLES
   content.style.color = styles.textColor;
   content.style.fontSize = styles.fontSize + 'px';
   content.style.fontWeight = styles.fontWeight;
@@ -1210,12 +1218,10 @@ function render() {
     ? 'var(--accent)'
     : styles.borderColor;
 
-  // ✨ SAVE TEXT
   content.addEventListener('input', () => {
     p.text = content.textContent;
   });
 
-  // ✨ SELECT HANDLING
   content.addEventListener('click', e => {
     e.stopPropagation();
     if (selected !== p.id) {
@@ -1224,59 +1230,11 @@ function render() {
     }
   });
 
+  dragbar.addEventListener('pointerdown', e => {
+    e.preventDefault();
+  });
+
   el.appendChild(content);
-
-} else if (isMath) {
-  const dragbar = document.createElement('div');
-  dragbar.className = 'mathblock-dragbar';
-  dragbar.textContent = 'Drag basic math block';
-  el.appendChild(dragbar);
-  dragTarget = dragbar;
-
-  const body = document.createElement('div');
-  body.className = 'mathblock-body';
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'mathblock-prompt';
-  wrapper.textContent = (p.promptText || 'Practice:') + ' ';
-
-  const inlineMath = document.createElement('math-field');
-  inlineMath.setAttribute('read-only', 'true');
-  inlineMath.setAttribute('virtual-keyboard-mode', 'manual');
-  inlineMath.style.border = 'none';
-  inlineMath.style.background = 'transparent';
-  inlineMath.style.padding = '0';
-  inlineMath.style.display = 'inline-block';
-  inlineMath.style.fontSize = '14px';
-  inlineMath.value = p.promptLatex || '';
-
-  wrapper.appendChild(inlineMath);
-  body.appendChild(wrapper);
-
-  const field = document.createElement('math-field');
-  field.setAttribute('virtual-keyboard-mode', 'manual');
-  field.value = p.value || '';
-  body.appendChild(field);
-
-  const preview = document.createElement('div');
-  preview.className = 'mathblock-preview';
-  preview.textContent = p.value || 'Preview will appear here.';
-  body.appendChild(preview);
-
-  field.addEventListener('input', () => {
-    p.value = field.value;
-    preview.textContent = p.value || 'Preview will appear here.';
-  });
-
-  field.addEventListener('click', e => {
-    e.stopPropagation();
-    if (selected !== p.id) {
-      selected = p.id;
-      render();
-    }
-  });
-
-  el.appendChild(body);
 
 } else if (isQuestionMath) {
     const dragbar = document.createElement('div');
@@ -1370,30 +1328,45 @@ function render() {
     el.appendChild(handle);
 
     dragTarget.addEventListener('pointerdown', e => {
-      if (e.target === handle || e.target === deleteHandle) return;
-      hideMediaContextMenu();
-      selected = p.id;
+  if (e.target === handle || e.target === deleteHandle) return;
 
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const ox = p.x;
-      const oy = p.y;
+  e.preventDefault();
+  e.stopPropagation();
 
-      function move(ev) {
-        p.x = clamp(ox + (ev.clientX - startX), 0, surface.clientWidth - p.w);
-        p.y = clamp(oy + (ev.clientY - startY), 0, surface.clientHeight - p.h);
-        el.style.left = p.x + 'px';
-        el.style.top = p.y + 'px';
-      }
+  hideMediaContextMenu();
+  selected = p.id;
 
-      function up() {
-        window.removeEventListener('pointermove', move);
-        render();
-      }
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const ox = p.x;
+  const oy = p.y;
 
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up, { once: true });
-    });
+  if (dragTarget.setPointerCapture && e.pointerId != null) {
+    try {
+      dragTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  }
+
+  function move(ev) {
+    p.x = clamp(ox + (ev.clientX - startX), 0, surface.clientWidth - p.w);
+    p.y = clamp(oy + (ev.clientY - startY), 0, surface.clientHeight - p.h);
+    el.style.left = p.x + 'px';
+    el.style.top = p.y + 'px';
+  }
+
+  function up(ev) {
+    window.removeEventListener('pointermove', move);
+    if (dragTarget.releasePointerCapture && ev.pointerId != null) {
+      try {
+        dragTarget.releasePointerCapture(ev.pointerId);
+      } catch {}
+    }
+    render();
+  }
+
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up, { once: true });
+});
 
     handle.addEventListener('pointerdown', e => {
       e.stopPropagation();
