@@ -489,21 +489,6 @@ function addPiece(src, name = 'image'){
   render();
 }
 
-function addSvgContent(){
-  const rawSvg = (svgContentInput.value || '').trim();
-  if (!rawSvg) {
-    setStatus('Paste SVG content first.');
-    return;
-  }
-  if (!/<svg[\s>]/i.test(rawSvg)) {
-    setStatus('That does not look like valid SVG content.');
-    return;
-  }
-  addPiece(svgToDataUrl(rawSvg), 'pasted-svg');
-  svgContentInput.value = '';
-  setStatus('SVG content added to canvas.');
-}
-
 function addTextBox(){
   pieces.push({
     id: uid(),
@@ -606,36 +591,6 @@ function addMechanismArrow(){
 
   selected = pieces[pieces.length - 1].id;
   render();
-}
-
-  if (!RDKitModuleRef) {
-    setStatus('ChemRender is still loading...');
-    return;
-  }
-
-  try {
-    const mol = RDKitModuleRef.get_mol(smiles);
-    if (!mol) throw new Error('Could not parse SMILES');
-    const rawSvg = mol.get_svg();
-    const encoded = svgToDataUrl(rawSvg);
-    pieces.push({
-      id: uid(),
-      type: 'media',
-      name: smiles,
-      src: encoded,
-      x: 100 + pieces.length * 10,
-      y: 100 + pieces.length * 10,
-      w: 220,
-      h: 160
-    });
-    selected = pieces[pieces.length - 1].id;
-    if (typeof mol.delete === 'function') mol.delete();
-    render();
-    setStatus('Molecule added to canvas.');
-  } catch (error) {
-    console.error(error);
-    setStatus('Invalid SMILES string.');
-  }
 }
 
 function render(){
