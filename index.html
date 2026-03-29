@@ -1152,7 +1152,6 @@ function render() {
       el.appendChild(dragbar);
       dragTarget = dragbar;
       
-  // Your corrected isCustomText section should end like this
 } else if (isCustomText) {
   const dragbar = document.createElement('div');
   dragbar.className = 'custom-textbox-dragbar';
@@ -1171,39 +1170,6 @@ function render() {
     textAlign: 'left'
   };
   p.styles = styles;
-
-  const content = document.createElement('div');
-  content.className = 'custom-textbox-content';
-  content.contentEditable = 'true';
-  content.spellcheck = false;
-  content.textContent = p.text || '';
-
-  content.style.color = styles.textColor || '#000000';
-  content.style.fontSize = (styles.fontSize || 18) + 'px';
-  content.style.fontWeight = styles.fontWeight || '400';
-  content.style.fontStyle = styles.fontStyle || 'normal';
-  content.style.textAlign = styles.textAlign || 'left';
-
-  el.style.background = hexToRgba(styles.backgroundColor || '#ffffff', styles.opacity ?? 0.9);
-  el.style.borderColor = (p.id === selected)
-    ? 'var(--accent)'
-    : (styles.borderColor || '#d9e0ea');
-
-  content.addEventListener('input', () => {
-    p.text = content.textContent;
-  });
-
-  content.addEventListener('click', e => {
-    e.stopPropagation();
-    if (selected !== p.id) {
-      selected = p.id;
-      render();
-    }
-  });
-
-  el.appendChild(content);
-}
-
     
     } else if (isMath) {
       const dragbar = document.createElement('div');
