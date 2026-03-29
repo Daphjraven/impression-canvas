@@ -214,7 +214,7 @@ body.sidebar-collapsed #sidebar > * {
 
 .custom-textbox {
   position: absolute;
-  background: rgba(255,255,255,0.9);
+  background: transparent;
   min-width: 180px;
   min-height: 120px;
   display: flex;
@@ -807,7 +807,7 @@ function addTextBox() {
         backgroundColor: '#ffffff',
         textColor: '#000000',
         borderColor: '#d9e0ea',
-        opacity: 0.9,
+        opacity: 0,
         fontSize: 18,
         fontWeight: '400',
         fontStyle: 'normal',
@@ -1196,28 +1196,26 @@ function render() {
     el.appendChild(content);
 
 } else if (isCustomText) {
-  let dragTargetLocal = el;
   let dragbar = null;
+  dragTarget = null;
 
   if (p.showHeader !== false) {
     dragbar = document.createElement('div');
     dragbar.className = 'custom-textbox-dragbar';
     dragbar.textContent = 'Drag custom text box';
     el.appendChild(dragbar);
-    dragTargetLocal = dragbar;
+    dragTarget = dragbar;
 
     dragbar.addEventListener('pointerdown', e => {
       e.preventDefault();
     });
   }
 
-  dragTarget = dragTargetLocal;
-
   const styles = p.styles || {
     backgroundColor: '#ffffff',
     textColor: '#000000',
     borderColor: '#d9e0ea',
-    opacity: 0.9,
+    opacity: 0,
     fontSize: 18,
     fontWeight: '400',
     fontStyle: 'normal',
@@ -1399,83 +1397,84 @@ function render() {
     handle.className = 'resize-handle';
     el.appendChild(handle);
 
-    dragTarget.addEventListener('pointerdown', e => {
-  if (e.target === handle || e.target === deleteHandle) return;
+    if (dragTarget) {
+  dragTarget.addEventListener('pointerdown', e => {
+    if (e.target === handle || e.target === deleteHandle) return;
 
-  e.preventDefault();
+    e.preventDefault();
+    e.stopPropagation();
+
+    hideMediaContextMenu();
+    selected = p.id;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const ox = p.x;
+    const oy = p.y;
+
+    if (dragTarget.setPointerCapture && e.pointerId != null) {
+      try {
+        dragTarget.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+
+    function move(ev) {
+      p.x = clamp(ox + (ev.clientX - startX), 0, surface.clientWidth - p.w);
+      p.y = clamp(oy + (ev.clientY - startY), 0, surface.clientHeight - p.h);
+      el.style.left = p.x + 'px';
+      el.style.top = p.y + 'px';
+    }
+
+    function up(ev) {
+      window.removeEventListener('pointermove', move);
+      if (dragTarget.releasePointerCapture && ev.pointerId != null) {
+        try {
+          dragTarget.releasePointerCapture(ev.pointerId);
+        } catch {}
+      }
+      render();
+    }
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up, { once: true });
+  });
+}
+    handle.addEventListener('pointerdown', e => {
   e.stopPropagation();
-
   hideMediaContextMenu();
   selected = p.id;
 
   const startX = e.clientX;
   const startY = e.clientY;
-  const ox = p.x;
-  const oy = p.y;
-
-  if (dragTarget.setPointerCapture && e.pointerId != null) {
-    try {
-      dragTarget.setPointerCapture(e.pointerId);
-    } catch {}
-  }
+  const ow = p.w;
+  const oh = p.h;
 
   function move(ev) {
-  p.w = Math.max((isMath || isQuestionMath) ? 260 : ((isText || isCustomText) ? 140 : 30), ow + (ev.clientX - startX));
-  p.h = Math.max((isMath || isQuestionMath) ? 170 : ((isText || isCustomText) ? 72 : 30), oh + (ev.clientY - startY));
-  el.style.width = p.w + 'px';
-  el.style.height = p.h + 'px';
+    p.w = Math.max((isMath || isQuestionMath) ? 260 : ((isText || isCustomText) ? 140 : 30), ow + (ev.clientX - startX));
+    p.h = Math.max((isMath || isQuestionMath) ? 170 : ((isText || isCustomText) ? 72 : 30), oh + (ev.clientY - startY));
+    el.style.width = p.w + 'px';
+    el.style.height = p.h + 'px';
 
-  if (isCustomText) {
-    p.styles = p.styles || {};
-    const scaledSize = Math.round(Math.min(p.w / 10, p.h / 4));
-    p.styles.fontSize = clamp(scaledSize, 10, 48);
+    if (isCustomText) {
+      p.styles = p.styles || {};
+      const scaledSize = Math.round(Math.min(p.w / 10, p.h / 4));
+      p.styles.fontSize = clamp(scaledSize, 10, 48);
 
-    const content = el.querySelector('.custom-textbox-content');
-    if (content) {
-      content.style.fontSize = p.styles.fontSize + 'px';
+      const content = el.querySelector('.custom-textbox-content');
+      if (content) {
+        content.style.fontSize = p.styles.fontSize + 'px';
+      }
     }
   }
-}
 
-  function up(ev) {
+  function up() {
     window.removeEventListener('pointermove', move);
-    if (dragTarget.releasePointerCapture && ev.pointerId != null) {
-      try {
-        dragTarget.releasePointerCapture(ev.pointerId);
-      } catch {}
-    }
     render();
   }
 
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up, { once: true });
 });
-
-    handle.addEventListener('pointerdown', e => {
-      e.stopPropagation();
-      hideMediaContextMenu();
-      selected = p.id;
-
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const ow = p.w;
-      const oh = p.h;
-
-      function move(ev) {
-        p.w = Math.max((isMath || isQuestionMath) ? 260 : ((isText || isCustomText) ? 140 : 30), ow + (ev.clientX - startX));
-        p.h = Math.max((isMath || isQuestionMath) ? 170 : ((isText || isCustomText) ? 72 : 30), oh + (ev.clientY - startY));
-        el.style.width = p.w + 'px';
-        el.style.height = p.h + 'px';
-      }
-
-      function up() {
-        window.removeEventListener('pointermove', move);
-        render();
-      }
-
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up, { once: true });
-    });
 
     el.addEventListener('click', e => {
       e.stopPropagation();
