@@ -996,14 +996,18 @@ if (isText) {
   img.alt = p.name || 'piece';
   el.appendChild(img);
 
-  el.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    selected = p.id;
-    render();
-    showMediaContextMenu(e.clientX, e.clientY, p.id);
-  });
-}
+  el.addEventListener('dblclick', e => {
+  if (
+    (isText && e.target.classList.contains('textbox-content')) ||
+    ((isMath || isQuestionMath) && (e.target.closest('math-field') || e.target.closest('.mathblock-body')))
+  ) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  removePiece(p.id);
+});
+
+surface.appendChild(el);
 
     const handle = document.createElement('div');
     handle.className = 'resize-handle';
