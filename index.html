@@ -187,21 +187,30 @@ body.sidebar-collapsed #sidebar > * {
 }
 
 .delete-handle {
-  display: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
+  position: absolute;
+  top: -10px;
+  right: -10px;
 
-.piece:hover .delete-handle,
-.textbox:hover .delete-handle,
-.mathblock:hover .delete-handle,
-.custom-textbox:hover .delete-handle,
-.piece.selected .delete-handle,
-.textbox.selected .delete-handle,
-.mathblock.selected .delete-handle,
-.custom-textbox.selected .delete-handle {
-  display: flex;
-  opacity: 1;
+  width: 22px;
+  height: 22px;
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  background: white;
+  border: 1px solid #d9e0ea;
+
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+
+  cursor: pointer;
+  z-index: 10;
+
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
 /* Show on hover */
@@ -218,6 +227,12 @@ body.sidebar-collapsed #sidebar > * {
 .mathblock.selected .delete-handle,
 .custom-textbox.selected .delete-handle {
   display: flex;
+}
+
+.delete-handle:hover {
+  background: #ffe5e5;
+  border-color: #ff4d4d;
+  transform: scale(1.1);
 }
 
 .custom-textbox {
