@@ -374,10 +374,10 @@ label { display:block; margin-top:10px; font-size:14px; }
   <input type="color" id="customTextColor" value="#000000">
 
   <label for="customBorderColor">Border color</label>
-  <input type="color" id="customBorderColor" value="#d9e0ea">
+  <input type="color" id="customBorderColor" value="transparent">
 
   <label for="customBgOpacity">Background opacity</label>
-  <input type="range" id="customBgOpacity" min="0" max="1" step="0" value="0">
+  <input type="range" id="customBgOpacity" min="0" max="1" step="0.05" value="0">
 
   <label for="customFontSize">Font size</label>
   <input type="number" id="customFontSize" min="10" max="48" value="18">
@@ -815,7 +815,7 @@ function addTextBox() {
       styles: {
         backgroundColor: '#ffffff',
         textColor: '#000000',
-        borderColor: '#d9e0ea',
+        borderColor: 'transparent',
         opacity: 0,
         fontSize: 18,
         fontWeight: '400',
@@ -1091,7 +1091,7 @@ function syncCustomTextControls() {
   const styles = piece.styles || {};
   customBgColor.value = styles.backgroundColor || '#ffffff';
   customTextColor.value = styles.textColor || '#000000';
-  customBorderColor.value = styles.borderColor || '#d9e0ea';
+  customBorderColor.value = styles.borderColor || 'transparent';
   customBgOpacity.value = styles.opacity ?? 0;
   customFontSize.value = styles.fontSize || 18;
   customFontWeight.value = styles.fontWeight || '400';
@@ -1223,7 +1223,7 @@ function render() {
   const styles = p.styles || {
     backgroundColor: '#ffffff',
     textColor: '#000000',
-    borderColor: '#d9e0ea',
+    borderColor: 'transparent',
     opacity: 0,
     fontSize: 18,
     fontWeight: '400',
