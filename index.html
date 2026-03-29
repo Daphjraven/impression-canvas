@@ -1145,13 +1145,33 @@ function render() {
 
     let dragTarget = el;
 
-    if (isText) {
-      const dragbar = document.createElement('div');
-      dragbar.className = 'textbox-dragbar';
-      dragbar.textContent = 'Drag text box';
-      el.appendChild(dragbar);
-      dragTarget = dragbar;
-      
+  if (isText) {
+    const dragbar = document.createElement('div');
+    dragbar.className = 'textbox-dragbar';
+    dragbar.textContent = 'Drag text box';
+    el.appendChild(dragbar);
+    dragTarget = dragbar;
+
+    const content = document.createElement('div');
+    content.className = 'textbox-content';
+    content.contentEditable = 'true';
+    content.spellcheck = false;
+    content.textContent = p.text || '';
+
+    content.addEventListener('input', () => {
+    p.text = content.textContent;
+    });
+
+    content.addEventListener('click', e => {
+    e.stopPropagation();
+    if (selected !== p.id) {
+      selected = p.id;
+      render();
+    }
+    });
+
+    el.appendChild(content);
+
 } else if (isCustomText) {
   const dragbar = document.createElement('div');
   dragbar.className = 'custom-textbox-dragbar';
@@ -1206,73 +1226,125 @@ function render() {
 
   el.appendChild(content);
 
-    } else if (isQuestionMath) {
-      const dragbar = document.createElement('div');
-      dragbar.className = 'mathblock-dragbar';
-      dragbar.textContent = 'Drag question math block';
-      el.appendChild(dragbar);
-      dragTarget = dragbar;
+} else if (isMath) {
+  const dragbar = document.createElement('div');
+  dragbar.className = 'mathblock-dragbar';
+  dragbar.textContent = 'Drag basic math block';
+  el.appendChild(dragbar);
+  dragTarget = dragbar;
 
-      const body = document.createElement('div');
-      body.className = 'mathblock-body';
+  const body = document.createElement('div');
+  body.className = 'mathblock-body';
 
-      const promptText = document.createElement('div');
-      promptText.className = 'mathblock-prompt';
-      promptText.textContent = p.promptText || 'Solve the question.';
-      body.appendChild(promptText);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'mathblock-prompt';
+  wrapper.textContent = (p.promptText || 'Practice:') + ' ';
 
-      const promptField = document.createElement('math-field');
-      promptField.setAttribute('read-only', 'true');
-      promptField.setAttribute('virtual-keyboard-mode', 'manual');
-      promptField.value = p.promptLatex || '';
-      body.appendChild(promptField);
+  const inlineMath = document.createElement('math-field');
+  inlineMath.setAttribute('read-only', 'true');
+  inlineMath.setAttribute('virtual-keyboard-mode', 'manual');
+  inlineMath.style.border = 'none';
+  inlineMath.style.background = 'transparent';
+  inlineMath.style.padding = '0';
+  inlineMath.style.display = 'inline-block';
+  inlineMath.style.fontSize = '14px';
+  inlineMath.value = p.promptLatex || '';
 
-      const answerField = document.createElement('math-field');
-      answerField.setAttribute('virtual-keyboard-mode', 'manual');
-      answerField.value = p.value || '';
-      answerField.addEventListener('input', () => {
-        p.value = answerField.value;
+  wrapper.appendChild(inlineMath);
+  body.appendChild(wrapper);
+
+  const field = document.createElement('math-field');
+  field.setAttribute('virtual-keyboard-mode', 'manual');
+  field.value = p.value || '';
+  body.appendChild(field);
+
+  const preview = document.createElement('div');
+  preview.className = 'mathblock-preview';
+  preview.textContent = p.value || 'Preview will appear here.';
+  body.appendChild(preview);
+
+  field.addEventListener('input', () => {
+    p.value = field.value;
+    preview.textContent = p.value || 'Preview will appear here.';
+  });
+
+  field.addEventListener('click', e => {
+    e.stopPropagation();
+    if (selected !== p.id) {
+      selected = p.id;
+      render();
+    }
+  });
+
+  el.appendChild(body);
+
+} else if (isQuestionMath) {
+    const dragbar = document.createElement('div');
+    dragbar.className = 'mathblock-dragbar';
+    dragbar.textContent = 'Drag question math block';
+    el.appendChild(dragbar);
+    dragTarget = dragbar;
+
+    const body = document.createElement('div');
+    body.className = 'mathblock-body';
+
+    const promptText = document.createElement('div');
+    promptText.className = 'mathblock-prompt';
+    promptText.textContent = p.promptText || 'Solve the question.';
+    body.appendChild(promptText);
+
+    const promptField = document.createElement('math-field');
+    promptField.setAttribute('read-only', 'true');
+    promptField.setAttribute('virtual-keyboard-mode', 'manual');
+    promptField.value = p.promptLatex || '';
+    body.appendChild(promptField);
+
+    const answerField = document.createElement('math-field');
+    answerField.setAttribute('virtual-keyboard-mode', 'manual');
+    answerField.value = p.value || '';
+    answerField.addEventListener('input', () => {
+    p.value = answerField.value;
       });
-      answerField.addEventListener('click', e => {
-        e.stopPropagation();
-        if (selected !== p.id) {
-          selected = p.id;
-          render();
+    answerField.addEventListener('click', e => {
+    e.stopPropagation();
+    if (selected !== p.id) {
+    selected = p.id;
+    render();
         }
       });
-      body.appendChild(answerField);
+    body.appendChild(answerField);
 
-      const actions = document.createElement('div');
-      actions.className = 'questionmath-actions';
+    const actions = document.createElement('div');
+    actions.className = 'questionmath-actions';
 
-      const checkBtn = document.createElement('button');
-      checkBtn.type = 'button';
-      checkBtn.textContent = 'Check';
-      checkBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        checkQuestionMathBlock(p);
+    const checkBtn = document.createElement('button');
+    checkBtn.type = 'button';
+    checkBtn.textContent = 'Check';
+    checkBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    checkQuestionMathBlock(p);
       });
-      actions.appendChild(checkBtn);
+    actions.appendChild(checkBtn);
 
-      const nextBtn = document.createElement('button');
-      nextBtn.type = 'button';
-      nextBtn.textContent = 'New Question';
-      nextBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        refreshQuestionMathBlock(p);
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.textContent = 'New Question';
+    nextBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    refreshQuestionMathBlock(p);
       });
-      actions.appendChild(nextBtn);
+    actions.appendChild(nextBtn);
 
-      body.appendChild(actions);
+    body.appendChild(actions);
 
-      const feedback = document.createElement('div');
-      feedback.className = 'questionmath-feedback';
-      feedback.textContent = p.feedback || '';
-      body.appendChild(feedback);
+    const feedback = document.createElement('div');
+    feedback.className = 'questionmath-feedback';
+    feedback.textContent = p.feedback || '';
+    body.appendChild(feedback);
 
-      el.appendChild(body);
+    el.appendChild(body);
 
-    } else if (isMedia) {
+} else if (isMedia) {
       const img = document.createElement('img');
       img.src = p.src;
       img.alt = p.name || 'piece';
