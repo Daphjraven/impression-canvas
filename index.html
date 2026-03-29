@@ -1068,13 +1068,15 @@ function getSelectedCustomTextPiece() {
 
 function syncCustomTextControls() {
   const piece = getSelectedCustomTextPiece();
-  customShowHeader.checked = piece.showHeader !== false;
+
   if (!piece) {
     customTextControls.style.display = 'none';
+    customShowHeader.checked = true;
     return;
   }
 
   customTextControls.style.display = 'block';
+  customShowHeader.checked = piece.showHeader !== false;
 
   const styles = piece.styles || {};
   customBgColor.value = styles.backgroundColor || '#ffffff';
@@ -1193,17 +1195,22 @@ function render() {
     el.appendChild(content);
 
 } else if (isCustomText) {
-let dragTargetLocal = el;
+  let dragTargetLocal = el;
+  let dragbar = null;
 
-if (p.showHeader !== false) {
-  const dragbar = document.createElement('div');
-  dragbar.className = 'custom-textbox-dragbar';
-  dragbar.textContent = 'Drag custom text box';
-  el.appendChild(dragbar);
-  dragTargetLocal = dragbar;
-}
+  if (p.showHeader !== false) {
+    dragbar = document.createElement('div');
+    dragbar.className = 'custom-textbox-dragbar';
+    dragbar.textContent = 'Drag custom text box';
+    el.appendChild(dragbar);
+    dragTargetLocal = dragbar;
 
-dragTarget = dragTargetLocal;
+    dragbar.addEventListener('pointerdown', e => {
+      e.preventDefault();
+    });
+  }
+
+  dragTarget = dragTargetLocal;
 
   const styles = p.styles || {
     backgroundColor: '#ffffff',
@@ -1244,10 +1251,6 @@ dragTarget = dragTargetLocal;
       selected = p.id;
       render();
     }
-  });
-
-  dragbar.addEventListener('pointerdown', e => {
-    e.preventDefault();
   });
 
   el.appendChild(content);
