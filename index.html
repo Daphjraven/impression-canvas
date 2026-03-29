@@ -1171,13 +1171,14 @@ function render() {
   };
   p.styles = styles;
 
-  // ✅ THIS PART WAS MISSING
+  // ✨ CREATE CONTENT (THIS IS WHAT YOU’RE MISSING)
   const content = document.createElement('div');
   content.className = 'custom-textbox-content';
   content.contentEditable = 'true';
   content.spellcheck = false;
   content.textContent = p.text || '';
 
+  // ✨ APPLY STYLES
   content.style.color = styles.textColor;
   content.style.fontSize = styles.fontSize + 'px';
   content.style.fontWeight = styles.fontWeight;
@@ -1189,10 +1190,12 @@ function render() {
     ? 'var(--accent)'
     : styles.borderColor;
 
+  // ✨ SAVE TEXT
   content.addEventListener('input', () => {
     p.text = content.textContent;
   });
 
+  // ✨ SELECT HANDLING
   content.addEventListener('click', e => {
     e.stopPropagation();
     if (selected !== p.id) {
@@ -1203,7 +1206,6 @@ function render() {
 
   el.appendChild(content);
 }
-
     } else if (isQuestionMath) {
       const dragbar = document.createElement('div');
       dragbar.className = 'mathblock-dragbar';
