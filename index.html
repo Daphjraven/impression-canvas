@@ -299,7 +299,8 @@ body.sidebar-collapsed #sidebar > * {
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
-
+}
+  
 .label-station {
   position: absolute;
   background: white;
@@ -1589,7 +1590,6 @@ content.addEventListener('click', e => {
     e.stopPropagation();
     if (selected !== p.id) {
       selected = p.id;
-      render();
     }
   });
 
@@ -1882,8 +1882,8 @@ content.addEventListener('click', e => {
   const oh = p.h;
 
   function move(ev) {
-    p.w = Math.max((isMath || isQuestionMath || isPlainMath) ? 260 : ((isText || isCustomText) ? 100 : 30), ow + (ev.clientX - startX));
-    p.h = Math.max((isMath || isQuestionMath || isPlainMath) ? 90 : ((isText || isCustomText) ? 50 : 30), oh + (ev.clientY - startY));
+    p.w = Math.max((isMath || isQuestionMath || isPlainMath) ? 260 : (isLabelStation ? 320 : ((isText || isCustomText) ? 100 : 30)), ow + (ev.clientX - startX));
+    p.h = Math.max((isMath || isQuestionMath || isPlainMath) ? 90 : (isLabelStation ? 260 : ((isText || isCustomText) ? 50 : 30)), oh + (ev.clientY - startY));
     el.style.width = p.w + 'px';
     el.style.height = p.h + 'px';
 
