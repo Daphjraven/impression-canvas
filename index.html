@@ -300,7 +300,7 @@ body.sidebar-collapsed #sidebar > * {
   -webkit-user-select: none;
   touch-action: none;
 
-  .label-station {
+.label-station {
   position: absolute;
   background: white;
   border: 2px solid transparent;
@@ -408,9 +408,8 @@ body.sidebar-collapsed #sidebar > * {
   background: #111827;
   color: white;
   font-size: 12px;
-  margin-right: 8px;  
+  margin-right: 8px;
 }
-
   
 #mediaContextMenu {
   position:fixed;
@@ -475,6 +474,54 @@ select {
   width:auto;
 }
 
+#labelStationControls {
+  display: none;
+  margin-top: 12px;
+  padding: 10px;
+  background: white;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+}
+
+#labelStationControls h4 {
+  margin: 0 0 8px 0;
+}
+
+#labelStationControls input[type="text"],
+#labelStationControls textarea {
+  width: 100%;
+}
+
+#labelStationControls textarea {
+  min-height: 72px;
+}
+
+.label-station-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.label-station-toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+  font-size: 14px;
+}
+
+.label-station-controls-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.label-station-controls-actions button {
+  width: auto;
+  flex: 1;
+}
+  
 textarea { min-height:90px; resize:vertical; }
 button, input, textarea, select { margin-top:6px; padding:8px; }
 button { cursor:pointer; }
@@ -549,8 +596,8 @@ label { display:block; margin-top:10px; font-size:14px; }
 
 <h3>BioRender</h3>
   
-<div id="labelStationControls" style="display:none; margin-top:12px; padding:10px; background:white; border:1px solid #d9e0ea; border-radius:8px;">
-  <h4 style="margin:0 0 8px 0;">Label Station Settings</h4>
+<div id="labelStationControls">
+  <h4>Label Station Settings</h4>
 
   <label for="labelStationTitle">Board title</label>
   <input type="text" id="labelStationTitle" placeholder="Label Station">
@@ -564,22 +611,15 @@ label { display:block; margin-top:10px; font-size:14px; }
   <label for="labelStationTeacherAnswer">Next teacher label</label>
   <input type="text" id="labelStationTeacherAnswer" placeholder="Type label, then click board">
 
-  <label>
-    <input type="checkbox" id="labelStationTeacherMode">
-    Teacher mode
-  </label>
+  <div class="label-station-toggle-row">
+    <label><input type="checkbox" id="labelStationTeacherMode"> Teacher mode</label>
+    <label><input type="checkbox" id="labelStationTypingMode"> Typing mode</label>
+    <label><input type="checkbox" id="labelStationShowAnswers"> Show answers</label>
+  </div>
 
-  <label>
-    <input type="checkbox" id="labelStationTypingMode">
-    Typing mode
-  </label>
-
-  <label>
-    <input type="checkbox" id="labelStationShowAnswers">
-    Show answers
-  </label>
-
-  <button type="button" onclick="clearLabelStationZones()">Clear Zones</button>
+  <div class="label-station-controls-actions">
+    <button type="button" onclick="clearLabelStationZones()">Clear Zones</button>
+  </div>
 </div>
 
   <button type="button" onclick="addLabelStation()">Add Label Station</button>
@@ -1438,13 +1478,13 @@ function render() {
     const isLabelStation = p.type === 'label-station';
 
     const el = document.createElement('div');
-    el.className =
-      (
-        (isMath || isQuestionMath || isPlainMath) ? 'mathblock' :
-        (isLabelStation ? 'label-station' :
-        (isCustomText ? 'custom-textbox' :
-        (isText ? 'textbox' : 'piece')))
-      ) + (p.id === selected ? ' selected' : '');
+   el.className =
+  (
+    (isMath || isQuestionMath || isPlainMath) ? 'mathblock' :
+    (isLabelStation ? 'label-station' :
+    (isCustomText ? 'custom-textbox' :
+    (isText ? 'textbox' : 'piece')))
+  ) + (p.id === selected ? ' selected' : '');
     el.style.left = p.x + 'px';
     el.style.top = p.y + 'px';
     el.style.width = p.w + 'px';
@@ -1730,65 +1770,6 @@ content.addEventListener('click', e => {
     placeholder.textContent = 'No board image yet.';
     board.appendChild(placeholder);
   }
-
-  board.addEventListener('click', e => {
-    if (!p.teacherMode) return;
-    const answer = (labelStationTeacherAnswer.value || '').trim();
-    if (!answer) return;
-
-    const rect = board.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-    const zoneId = 'z' + (p.zones.length + 1);
-    p.zones.push({
-      id: zoneId,
-      answer,
-      x: clamp(x, 0, 100),
-      y: clamp(y, 0, 100)
-    });
-    p.placements[zoneId] = '';
-    labelStationTeacherAnswer.value = '';
-    render();
-  });
-
-  (p.zones || []).forEach((zone, index) => {
-    const placed = p.placements[zone.id] || '';
-    const shownText = p.showAnswers ? zone.answer : (placed || ('Drop ' + (index + 1)));
-    const isCorrect = placed && String(placed).trim().toLowerCase() === String(zone.answer).trim().toLowerCase();
-    const isWrong = placed && !isCorrect;
-
-    const zoneEl = document.createElement('div');
-    zoneEl.className = 'label-station-zone' + (isCorrect ? ' good' : '') + (isWrong ? ' bad' : '');
-    zoneEl.style.left = clamp(zone.x, 5, 95) + '%';
-    zoneEl.style.top = clamp(zone.y, 5, 95) + '%';
-
-    zoneEl.addEventListener('dragover', e => e.preventDefault());
-    zoneEl.addEventListener('drop', e => {
-      e.preventDefault();
-      const label = p.draggingLabel;
-      if (!label) return;
-      p.placements[zone.id] = label;
-      render();
-    });
-
-    if (p.typingMode && !p.showAnswers) {
-      zoneEl.innerHTML = '<span class="label-station-zone-index">' + (index + 1) + '</span>';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = placed;
-      input.style.width = 'calc(100% - 34px)';
-      input.addEventListener('input', e => {
-        p.placements[zone.id] = e.target.value;
-      });
-      input.addEventListener('click', e => e.stopPropagation());
-      zoneEl.appendChild(input);
-    } else {
-      zoneEl.innerHTML = '<span class="label-station-zone-index">' + (index + 1) + '</span><span>' + shownText + '</span>';
-    }
-
-    board.appendChild(zoneEl);
-  });
 
   const right = document.createElement('div');
   right.className = 'label-station-sidebar';
