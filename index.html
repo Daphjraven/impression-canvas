@@ -217,10 +217,12 @@ body.sidebar-collapsed #sidebar > * {
 .textbox:hover .delete-handle,
 .mathblock:hover .delete-handle,
 .custom-textbox:hover .delete-handle,
+.label-station:hover .delete-handle,
 .piece.selected .delete-handle,
 .textbox.selected .delete-handle,
 .mathblock.selected .delete-handle,
-.custom-textbox.selected .delete-handle {
+.custom-textbox.selected .delete-handle,
+.label-station.selected .delete-handle {
   display: flex;
   opacity: 1;
 }
@@ -600,6 +602,9 @@ label { display:block; margin-top:10px; font-size:14px; }
 <div id="labelStationControls">
   <h4>Label Station Settings</h4>
 
+  <label for="labelStationImageUpload">Board image</label>
+  <input type="file" id="labelStationImageUpload" accept="image/*">
+  
   <label for="labelStationTitle">Board title</label>
   <input type="text" id="labelStationTitle" placeholder="Label Station">
 
@@ -743,6 +748,7 @@ const labelStationTeacherAnswer = document.getElementById('labelStationTeacherAn
 const labelStationTeacherMode = document.getElementById('labelStationTeacherMode');
 const labelStationTypingMode = document.getElementById('labelStationTypingMode');
 const labelStationShowAnswers = document.getElementById('labelStationShowAnswers');
+const labelStationImageUpload = document.getElementById('labelStationImageUpload');
   
 const sessionNameInput = document.getElementById('sessionNameInput');
 const githubOwnerInput = document.getElementById('githubOwnerInput');
@@ -1426,7 +1432,6 @@ function syncLabelStationControls() {
   labelStationTeacherMode.checked = !!piece.teacherMode;
   labelStationTypingMode.checked = !!piece.typingMode;
   labelStationShowAnswers.checked = !!piece.showAnswers;
-  labelStationTeacherAnswer.value = '';
 }
 
 function updateSelectedLabelStationFromSidebar() {
@@ -1465,6 +1470,19 @@ function wireLabelStationControlEvents() {
     control.addEventListener('change', updateSelectedLabelStationFromSidebar);
   });
 }
+
+function uploadImageToSelectedLabelStation(file) {
+  const piece = getSelectedLabelStation();
+  if (!piece || !file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    piece.imageSrc = reader.result;
+    render();
+    setStatus('Loaded image into selected label station.');
+  };
+  reader.readAsDataURL(file);
+}
   
 function render() {
   surface.innerHTML = '';
@@ -1495,12 +1513,13 @@ function render() {
     const deleteHandle = document.createElement('button');
     deleteHandle.type = 'button';
     deleteHandle.className = 'delete-handle';
-    deleteHandle.setAttribute(
-      'aria-label',
-      (isMath || isQuestionMath) ? 'Delete math block' : ((isText || isCustomText) ? 'Delete text box' : 'Delete media')
-    );
-    deleteHandle.title =
-      (isMath || isQuestionMath) ? 'Delete math block' : ((isText || isCustomText) ? 'Delete text box' : 'Delete media');
+    const deleteLabel =
+  (isMath || isQuestionMath || isPlainMath) ? 'Delete math block' :
+  (isLabelStation ? 'Delete label station' :
+  ((isText || isCustomText) ? 'Delete text box' : 'Delete media'));
+
+deleteHandle.setAttribute('aria-label', deleteLabel);
+deleteHandle.title = deleteLabel;
     deleteHandle.textContent = '×';
     deleteHandle.addEventListener('click', e => {
       e.preventDefault();
@@ -1771,6 +1790,100 @@ content.addEventListener('click', e => {
     board.appendChild(placeholder);
   }
 
+board.addEventListener('click', e => {
+  if (!p.teacherMode) return;
+  if (e.target !== board && !e.target.classList.contains('label-station-placeholder') && e.target.tagName !== 'IMG') return;
+
+  const answer = (labelStationTeacherAnswer.value || '').trim();
+  if (!answer) {
+    setStatus('Type a teacher label first, then click the board.');
+    return;
+  }
+
+  const rect = board.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+  const zoneId = 'z' + (p.zones.length + 1);
+  p.zones.push({
+    id: zoneId,
+    answer,
+    x: clamp(x, 0, 100),
+    y: clamp(y, 0, 100)
+  });
+
+  p.placements[zoneId] = '';
+  labelStationTeacherAnswer.value = '';
+  render();
+  setStatus('Placed teacher zone.');
+});
+
+  const rect = board.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+  const zoneId = 'z' + (p.zones.length + 1);
+  p.zones.push({
+    id: zoneId,
+    answer,
+    x: clamp(x, 0, 100),
+    y: clamp(y, 0, 100)
+  });
+
+  p.placements[zoneId] = '';
+  labelStationTeacherAnswer.value = '';
+  render();
+  setStatus('Placed teacher zone.');
+});
+
+(p.zones || []).forEach((zone, index) => {
+  const placed = p.placements[zone.id] || '';
+  const shownText = p.showAnswers ? zone.answer : (placed || ('Drop ' + (index + 1)));
+  const isCorrect = placed && String(placed).trim().toLowerCase() === String(zone.answer).trim().toLowerCase();
+  const isWrong = placed && !isCorrect;
+
+  const zoneEl = document.createElement('div');
+  zoneEl.className = 'label-station-zone' + (isCorrect ? ' good' : '') + (isWrong ? ' bad' : '');
+  zoneEl.style.left = clamp(zone.x, 5, 95) + '%';
+  zoneEl.style.top = clamp(zone.y, 5, 95) + '%';
+
+  zoneEl.addEventListener('dragover', e => e.preventDefault());
+  zoneEl.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!p.draggingLabel) return;
+    p.placements[zone.id] = p.draggingLabel;
+    render();
+  });
+
+  if (p.typingMode && !p.showAnswers) {
+    zoneEl.innerHTML = '<span class="label-station-zone-index">' + (index + 1) + '</span>';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = placed;
+    input.style.width = 'calc(100% - 34px)';
+    input.addEventListener('input', ev => {
+      p.placements[zone.id] = ev.target.value;
+    });
+    
+    input.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') {
+        render();
+      }
+    });
+    
+    input.addEventListener('blur', () => {
+      render();
+    });
+    
+    input.addEventListener('click', ev => ev.stopPropagation());
+    zoneEl.appendChild(input);
+  } else {
+    zoneEl.innerHTML = '<span class="label-station-zone-index">' + (index + 1) + '</span><span>' + shownText + '</span>';
+  }
+
+  board.appendChild(zoneEl);
+});
+    
   const right = document.createElement('div');
   right.className = 'label-station-sidebar';
 
@@ -2133,16 +2246,26 @@ document.addEventListener('click', hideMediaContextMenu);
 document.addEventListener('scroll', hideMediaContextMenu, true);
 window.addEventListener('resize', hideMediaContextMenu);
 
+labelStationImageUpload.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  uploadImageToSelectedLabelStation(file);
+  e.target.value = '';
+});
+
 (async function boot(){
   initializeRDKit();
   wireCustomTextControlEvents();
   wireLabelStationControlEvents();
+
   if (location.hash.startsWith('#json=')) {
     loadSessionUrl();
   } else {
     await loadFromQueryParam();
   }
+
   render();
+
   if (githubOwnerInput.value.trim() && githubRepoInput.value.trim()) {
     refreshGitHubCanvases();
   }
