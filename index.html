@@ -187,29 +187,48 @@ body.sidebar-collapsed #sidebar > * {
 }
 
 .delete-handle {
-  position:absolute;
-  top:-8px;
-  right:-8px;
-  width:20px;
-  height:20px;
-  border:none;
-  border-radius:999px;
-  background:#ffffff;
-  color:var(--accent);
-  box-shadow:0 1px 4px rgba(0,0,0,0.18);
-  font-size:14px;
-  line-height:1;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  padding:0;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+
+  width: 22px;
+  height: 22px;
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  background: white;
+  border: 1px solid #d9e0ea;
+
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+
+  cursor: pointer;
+  z-index: 10;
+
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
+.piece:hover .delete-handle,
+.textbox:hover .delete-handle,
+.mathblock:hover .delete-handle,
+.custom-textbox:hover .delete-handle,
 .piece.selected .delete-handle,
 .textbox.selected .delete-handle,
-.mathblock.selected .delete-handle {
-  display:flex;
+.mathblock.selected .delete-handle,
+.custom-textbox.selected .delete-handle {
+  display: flex;
+  opacity: 1;
+}
+
+.delete-handle:hover {
+  background: #ffe5e5;
+  border-color: #ff4d4d;
+  transform: scale(1.1);
 }
 
 .custom-textbox {
@@ -220,6 +239,14 @@ body.sidebar-collapsed #sidebar > * {
   display: flex;
   flex-direction: column;
   border: 2px solid #d9e0ea;
+}
+
+.custom-textbox {
+  cursor: move;
+}
+
+.custom-textbox-content {
+  cursor: text;
 }
 
 .custom-textbox.selected {
@@ -366,10 +393,10 @@ label { display:block; margin-top:10px; font-size:14px; }
   <input type="color" id="customTextColor" value="#000000">
 
   <label for="customBorderColor">Border color</label>
-  <input type="color" id="customBorderColor" value="#d9e0ea">
+  <input type="color" id="customBorderColor" value="transparent">
 
   <label for="customBgOpacity">Background opacity</label>
-  <input type="range" id="customBgOpacity" min="0" max="1" step="0.05" value="0.9">
+  <input type="range" id="customBgOpacity" min="0" max="1" step="0.05" value="0">
 
   <label for="customFontSize">Font size</label>
   <input type="number" id="customFontSize" min="10" max="48" value="18">
@@ -427,6 +454,7 @@ label { display:block; margin-top:10px; font-size:14px; }
     <option value="equilibrium">Equilibrium Arrow ⇌</option>
     <option value="resonance">Resonance Arrow ↔</option>
     <option value="curved">Curved electron arrow</option>
+    <option value="fishhook">Fishhook (single electron)</option>
   </select>
   <button type="button" onclick="addMechanismArrow()">Add Mechanism Arrow</button>
 
@@ -504,6 +532,7 @@ const questionBankUrlInput = document.getElementById('questionBankUrlInput');
 const saveMediaButton = document.getElementById('saveMediaButton');
 const textBoxTypeSelect = document.getElementById('textBoxTypeSelect');
 const customShowHeader = document.getElementById('customShowHeader');
+const canvasEl = document.getElementById('canvas');
 
 const customTextControls = document.getElementById('customTextControls');
 const customBgColor = document.getElementById('customBgColor');
@@ -532,6 +561,20 @@ let sidebarCollapsed = false;
 let RDKitModuleRef = null;
 let contextMenuPieceId = null;
 
+function clearSelection() {
+  if (selected !== null) {
+    selected = null;
+    hideMediaContextMenu();
+    render();
+  }
+}
+
+canvasEl.addEventListener('pointerdown', e => {
+  if (e.target === canvasEl || e.target === surface) {
+    clearSelection();
+  }
+});
+  
 function uid(){ return Math.random().toString(36).slice(2); }
 function setStatus(msg){ statusBox.textContent = msg; }
 function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
@@ -806,7 +849,7 @@ function addTextBox() {
       styles: {
         backgroundColor: '#ffffff',
         textColor: '#000000',
-        borderColor: '#d9e0ea',
+        borderColor: 'transparent',
         opacity: 0,
         fontSize: 18,
         fontWeight: '400',
@@ -1082,7 +1125,7 @@ function syncCustomTextControls() {
   const styles = piece.styles || {};
   customBgColor.value = styles.backgroundColor || '#ffffff';
   customTextColor.value = styles.textColor || '#000000';
-  customBorderColor.value = styles.borderColor || '#d9e0ea';
+  customBorderColor.value = styles.borderColor || 'transparent';
   customBgOpacity.value = styles.opacity ?? 0;
   customFontSize.value = styles.fontSize || 18;
   customFontWeight.value = styles.fontWeight || '400';
@@ -1181,17 +1224,16 @@ function render() {
     content.spellcheck = false;
     content.textContent = p.text || '';
 
-    content.addEventListener('input', () => {
-    p.text = content.textContent;
-    });
+    content.addEventListener('pointerdown', e => {
+  e.stopPropagation();
+  if (selected !== p.id) {
+    selected = p.id;
+  }
+});
 
-    content.addEventListener('click', e => {
-    e.stopPropagation();
-    if (selected !== p.id) {
-      selected = p.id;
-      render();
-    }
-    });
+content.addEventListener('click', e => {
+  e.stopPropagation();
+});
 
     el.appendChild(content);
 
@@ -1214,7 +1256,7 @@ function render() {
   const styles = p.styles || {
     backgroundColor: '#ffffff',
     textColor: '#000000',
-    borderColor: '#d9e0ea',
+    borderColor: 'transparent',
     opacity: 0,
     fontSize: 18,
     fontWeight: '400',
@@ -1244,7 +1286,7 @@ function render() {
     p.text = content.textContent;
   });
 
-  content.addEventListener('click', e => {
+  content.addEventListener('pointerdown', e => {
     e.stopPropagation();
     if (selected !== p.id) {
       selected = p.id;
@@ -1252,7 +1294,7 @@ function render() {
     }
   });
 
-  content.addEventListener('pointerdown', e => {
+  content.addEventListener('click', e => {
     e.stopPropagation();
   });
 
