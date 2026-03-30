@@ -516,6 +516,7 @@ select {
 
 .label-station-controls-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
@@ -625,6 +626,10 @@ label { display:block; margin-top:10px; font-size:14px; }
 
   <div class="label-station-controls-actions">
     <button type="button" onclick="clearLabelStationZones()">Clear Zones</button>
+
+    <button type="button" onclick="exportSelectedLabelStation()">Export Station JSON</button>
+    <button type="button" onclick="importSelectedLabelStation()">Import Station JSON</button>
+    <input type="file" id="labelStationJsonInput" accept=".json,application/json" style="display:none;">
   </div>
 </div>
 
@@ -749,6 +754,7 @@ const labelStationTeacherMode = document.getElementById('labelStationTeacherMode
 const labelStationTypingMode = document.getElementById('labelStationTypingMode');
 const labelStationShowAnswers = document.getElementById('labelStationShowAnswers');
 const labelStationImageUpload = document.getElementById('labelStationImageUpload');
+const labelStationJsonInput = document.getElementById('labelStationJsonInput');
   
 const sessionNameInput = document.getElementById('sessionNameInput');
 const githubOwnerInput = document.getElementById('githubOwnerInput');
@@ -1483,6 +1489,56 @@ function uploadImageToSelectedLabelStation(file) {
   };
   reader.readAsDataURL(file);
 }
+
+function reindexLabelStationZones(piece) {
+  piece.zones = (piece.zones || []).map((zone, index) => ({
+    ...zone,
+    id: 'z' + (index + 1)
+  }));
+
+  const nextPlacements = {};
+  piece.zones.forEach(zone => {
+    nextPlacements[zone.id] = piece.placements?.[zone.id] || '';
+  });
+  piece.placements = nextPlacements;
+}
+
+function exportSelectedLabelStation() {
+  const piece = getSelectedLabelStation();
+  if (!piece) {
+    setStatus('Select a label station first.');
+    return;
+  }
+
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    type: 'label-station-template',
+    title: piece.title || '',
+    prompt: piece.prompt || '',
+    imageSrc: piece.imageSrc || '',
+    labels: piece.labels || [],
+    zones: piece.zones || []
+  };
+
+  downloadTextAsFile(
+    JSON.stringify(payload, null, 2),
+    safeName(piece.title || 'label-station') + '.json',
+    'application/json'
+  );
+
+  setStatus('Label station exported.');
+}
+
+function importSelectedLabelStation() {
+  const piece = getSelectedLabelStation();
+  if (!piece) {
+    setStatus('Select a label station first.');
+    return;
+  }
+
+  labelStationJsonInput.click();
+}
   
 function render() {
   surface.innerHTML = '';
@@ -1837,26 +1893,74 @@ board.addEventListener('click', e => {
     render();
   });
 
+  if (p.teacherMode) {
+    zoneEl.style.cursor = 'move';
+
+    zoneEl.addEventListener('click', e => {
+      e.stopPropagation();
+
+      const shouldDelete = window.confirm(`Delete zone "${zone.answer}"?`);
+      if (!shouldDelete) return;
+
+      p.zones.splice(index, 1);
+      reindexLabelStationZones(p);
+      render();
+      setStatus('Zone deleted.');
+    });
+
+    zoneEl.addEventListener('pointerdown', e => {
+      if (e.target.tagName === 'INPUT') return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = board.getBoundingClientRect();
+      const startZoneX = zone.x;
+      const startZoneY = zone.y;
+      const startClientX = e.clientX;
+      const startClientY = e.clientY;
+
+      function move(ev) {
+        const dxPct = ((ev.clientX - startClientX) / rect.width) * 100;
+        const dyPct = ((ev.clientY - startClientY) / rect.height) * 100;
+        zone.x = clamp(startZoneX + dxPct, 0, 100);
+        zone.y = clamp(startZoneY + dyPct, 0, 100);
+        zoneEl.style.left = clamp(zone.x, 5, 95) + '%';
+        zoneEl.style.top = clamp(zone.y, 5, 95) + '%';
+      }
+
+      function up() {
+        window.removeEventListener('pointermove', move);
+        render();
+        setStatus('Zone moved.');
+      }
+
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up, { once: true });
+    });
+  }
+
   if (p.typingMode && !p.showAnswers) {
     zoneEl.innerHTML = '<span class="label-station-zone-index">' + (index + 1) + '</span>';
     const input = document.createElement('input');
     input.type = 'text';
     input.value = placed;
     input.style.width = 'calc(100% - 34px)';
+
     input.addEventListener('input', ev => {
       p.placements[zone.id] = ev.target.value;
     });
-    
+
     input.addEventListener('keydown', ev => {
       if (ev.key === 'Enter') {
         render();
       }
     });
-    
+
     input.addEventListener('blur', () => {
       render();
     });
-    
+
     input.addEventListener('click', ev => ev.stopPropagation());
     zoneEl.appendChild(input);
   } else {
@@ -2009,6 +2113,45 @@ board.addEventListener('click', e => {
   syncLabelStationControls();
 }
 
+labelStationJsonInput.addEventListener('change', async e => {
+  const piece = getSelectedLabelStation();
+  const file = e.target.files && e.target.files[0];
+
+  if (!piece || !file) {
+    e.target.value = '';
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if (!data || data.type !== 'label-station-template') {
+      throw new Error('Not a valid label station template.');
+    }
+
+    piece.title = data.title || 'Label Station';
+    piece.prompt = data.prompt || 'Label the diagram.';
+    piece.imageSrc = data.imageSrc || '';
+    piece.labels = Array.isArray(data.labels) ? data.labels : [];
+    piece.zones = Array.isArray(data.zones) ? data.zones : [];
+    piece.placements = {};
+    piece.teacherMode = false;
+    piece.typingMode = false;
+    piece.showAnswers = false;
+    piece.draggingLabel = null;
+
+    reindexLabelStationZones(piece);
+    render();
+    setStatus('Label station imported.');
+  } catch (error) {
+    console.error(error);
+    setStatus('Could not import label station JSON. ' + error.message);
+  }
+
+  e.target.value = '';
+});
+ 
 function saveSessionUrl(){
   const data = utf8ToBase64(JSON.stringify(getPayload()));
   const url = getCurrentSiteBase() + '#json=' + data;
